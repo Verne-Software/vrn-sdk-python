@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 
 from ..._core.http import AsyncHttpClient, SyncHttpClient
 from ._identities import AsyncIdentitiesResource, IdentitiesResource
+from ._settings import AsyncSettingsResource, SettingsResource
 from ._tokens import AsyncTokensResource, TokensResource
 from ._types import AuthorizeResult
 
@@ -25,6 +26,7 @@ class Gate:
         self._http = SyncHttpClient(api_key=api_key, base_url=base_url, timeout=timeout)
         self._identities: IdentitiesResource | None = None
         self._tokens: TokensResource | None = None
+        self._settings: SettingsResource | None = None
 
     @property
     def identities(self) -> IdentitiesResource:
@@ -37,6 +39,12 @@ class Gate:
         if self._tokens is None:
             self._tokens = TokensResource(self._http, self._api_key)
         return self._tokens
+
+    @property
+    def settings(self) -> SettingsResource:
+        if self._settings is None:
+            self._settings = SettingsResource(self._http)
+        return self._settings
 
     def authorize(
         self,
@@ -71,6 +79,7 @@ class AsyncGate:
         self._http = AsyncHttpClient(api_key=api_key, base_url=base_url, timeout=timeout)
         self._identities: AsyncIdentitiesResource | None = None
         self._tokens: AsyncTokensResource | None = None
+        self._settings: AsyncSettingsResource | None = None
 
     @property
     def identities(self) -> AsyncIdentitiesResource:
@@ -83,6 +92,12 @@ class AsyncGate:
         if self._tokens is None:
             self._tokens = AsyncTokensResource(self._http, self._api_key)
         return self._tokens
+
+    @property
+    def settings(self) -> AsyncSettingsResource:
+        if self._settings is None:
+            self._settings = AsyncSettingsResource(self._http)
+        return self._settings
 
     async def authorize(
         self,

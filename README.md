@@ -98,6 +98,27 @@ verne.gate.identities.patch(identity.id, [
 
 # Delete a user
 verne.gate.identities.delete(identity.id)
+
+# Activate / deactivate a user (an inactive user cannot log in)
+verne.gate.identities.deactivate(identity.id)
+verne.gate.identities.activate(identity.id)
+# …or set the state explicitly:
+verne.gate.identities.set_state(identity.id, "inactive")
+
+# Resend the email verification link
+verne.gate.identities.resend_verification(identity.id)
+```
+
+### Security Settings
+
+Read or replace the tenant's security settings (passwordless login, TOTP MFA):
+
+```python
+security = verne.gate.settings.get_security()
+# security.passwordless_enabled, security.mfa_enabled
+
+# Both fields are required — the update is a full replacement, not a merge.
+verne.gate.settings.update_security(passwordless_enabled=True, mfa_enabled=False)
 ```
 
 ### Access Tokens

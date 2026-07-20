@@ -106,6 +106,21 @@ class SyncHttpClient:
             return None
         return response.json()
 
+    def put(self, path: str, body: Any) -> Any:
+        headers = _build_headers(self._api_key)
+        try:
+            with httpx.Client(timeout=self._timeout) as client:
+                response = client.put(self._url(path), headers=headers, json=body)
+        except httpx.TimeoutException as exc:
+            raise VerneError(f"Request timed out: {exc}") from exc
+        except httpx.RequestError as exc:
+            raise VerneError(f"Network error: {exc}") from exc
+        if not response.is_success:
+            raise _parse_error(response)
+        if response.status_code == 204:
+            return None
+        return response.json()
+
     def patch(self, path: str, body: Any) -> Any:
         headers = _build_headers(self._api_key)
         try:
@@ -195,6 +210,21 @@ class AsyncHttpClient:
             except httpx.RequestError as exc:
                 raise VerneError(f"Network error: {exc}") from exc
 
+        if not response.is_success:
+            raise _parse_error(response)
+        if response.status_code == 204:
+            return None
+        return response.json()
+
+    async def put(self, path: str, body: Any) -> Any:
+        headers = _build_headers(self._api_key)
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.put(self._url(path), headers=headers, json=body)
+        except httpx.TimeoutException as exc:
+            raise VerneError(f"Request timed out: {exc}") from exc
+        except httpx.RequestError as exc:
+            raise VerneError(f"Network error: {exc}") from exc
         if not response.is_success:
             raise _parse_error(response)
         if response.status_code == 204:

@@ -11,6 +11,7 @@ from vernesoft._resources.gate._types import (
     AuthorizeResult,
     Identity,
     IntrospectResult,
+    SecuritySettings,
 )
 
 _API_KEY = "vrn_gate_test_sk_testkey"
@@ -139,6 +140,66 @@ def test_identity_delete(httpx_mock: HTTPXMock, gate: Gate) -> None:
     )
 
     result = gate.identities.delete("identity_123")
+    assert result is None
+
+
+def test_identity_set_state(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    import json
+
+    deactivated = {**_IDENTITY_PAYLOAD, "state": "inactive"}
+    httpx_mock.add_response(
+        method="PATCH",
+        url=f"{_BASE_URL}/v1/gate/identities/identity_123/state",
+        status_code=200,
+        json=deactivated,
+    )
+
+    identity = gate.identities.set_state("identity_123", "inactive")
+
+    assert identity.state == "inactive"
+    request = httpx_mock.get_request()
+    assert request is not None
+    assert json.loads(request.content) == {"state": "inactive"}
+
+
+def test_identity_activate(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    import json
+
+    httpx_mock.add_response(
+        method="PATCH",
+        url=f"{_BASE_URL}/v1/gate/identities/identity_123/state",
+        status_code=200,
+        json=_IDENTITY_PAYLOAD,
+    )
+
+    gate.identities.activate("identity_123")
+
+    assert json.loads(httpx_mock.get_request().content) == {"state": "active"}
+
+
+def test_identity_deactivate(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    import json
+
+    httpx_mock.add_response(
+        method="PATCH",
+        url=f"{_BASE_URL}/v1/gate/identities/identity_123/state",
+        status_code=200,
+        json={**_IDENTITY_PAYLOAD, "state": "inactive"},
+    )
+
+    gate.identities.deactivate("identity_123")
+
+    assert json.loads(httpx_mock.get_request().content) == {"state": "inactive"}
+
+
+def test_identity_resend_verification(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/gate/identities/identity_123/resend-verification",
+        status_code=204,
+    )
+
+    result = gate.identities.resend_verification("identity_123")
     assert result is None
 
 
@@ -311,6 +372,47 @@ def test_authorize_with_context(httpx_mock: HTTPXMock, gate: Gate) -> None:
 
 
 # ===========================================================================
+# Settings — synchronous
+# ===========================================================================
+
+
+def test_settings_get_security(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{_BASE_URL}/v1/gate/settings/security",
+        status_code=200,
+        json={"passwordless_enabled": True, "mfa_enabled": False},
+    )
+
+    settings = gate.settings.get_security()
+
+    assert isinstance(settings, SecuritySettings)
+    assert settings.passwordless_enabled is True
+    assert settings.mfa_enabled is False
+
+
+def test_settings_update_security(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    import json
+
+    httpx_mock.add_response(
+        method="PUT",
+        url=f"{_BASE_URL}/v1/gate/settings/security",
+        status_code=200,
+        json={"status": "ok"},
+    )
+
+    result = gate.settings.update_security(passwordless_enabled=True, mfa_enabled=True)
+    assert result is None
+
+    request = httpx_mock.get_request()
+    assert request is not None
+    assert json.loads(request.content) == {
+        "passwordless_enabled": True,
+        "mfa_enabled": True,
+    }
+
+
+# ===========================================================================
 # Async variants
 # ===========================================================================
 
@@ -387,3 +489,69 @@ async def test_async_identity_delete(httpx_mock: HTTPXMock, async_gate: AsyncGat
 
     result = await async_gate.identities.delete("identity_123")
     assert result is None
+
+
+async def test_async_identity_deactivate(
+    httpx_mock: HTTPXMock, async_gate: AsyncGate
+) -> None:
+    import json
+
+    httpx_mock.add_response(
+        method="PATCH",
+        url=f"{_BASE_URL}/v1/gate/identities/identity_123/state",
+        status_code=200,
+        json={**_IDENTITY_PAYLOAD, "state": "inactive"},
+    )
+
+    identity = await async_gate.identities.deactivate("identity_123")
+
+    assert identity.state == "inactive"
+    assert json.loads(httpx_mock.get_request().content) == {"state": "inactive"}
+
+
+async def test_async_identity_resend_verification(
+    httpx_mock: HTTPXMock, async_gate: AsyncGate
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/gate/identities/identity_123/resend-verification",
+        status_code=204,
+    )
+
+    result = await async_gate.identities.resend_verification("identity_123")
+    assert result is None
+
+
+async def test_async_settings_get_security(
+    httpx_mock: HTTPXMock, async_gate: AsyncGate
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{_BASE_URL}/v1/gate/settings/security",
+        status_code=200,
+        json={"passwordless_enabled": False, "mfa_enabled": True},
+    )
+
+    settings = await async_gate.settings.get_security()
+    assert settings.passwordless_enabled is False
+    assert settings.mfa_enabled is True
+
+
+async def test_async_settings_update_security(
+    httpx_mock: HTTPXMock, async_gate: AsyncGate
+) -> None:
+    import json
+
+    httpx_mock.add_response(
+        method="PUT",
+        url=f"{_BASE_URL}/v1/gate/settings/security",
+        status_code=200,
+        json={"status": "ok"},
+    )
+
+    await async_gate.settings.update_security(passwordless_enabled=True, mfa_enabled=False)
+
+    assert json.loads(httpx_mock.get_request().content) == {
+        "passwordless_enabled": True,
+        "mfa_enabled": False,
+    }

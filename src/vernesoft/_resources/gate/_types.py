@@ -64,6 +64,21 @@ class IntrospectResult:
 
 
 @dataclass(frozen=True)
+class SecuritySettings:
+    """Security-related Gate Identity settings for a tenant."""
+
+    passwordless_enabled: bool
+    mfa_enabled: bool
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SecuritySettings":
+        return cls(
+            passwordless_enabled=bool(data.get("passwordless_enabled", False)),
+            mfa_enabled=bool(data.get("mfa_enabled", False)),
+        )
+
+
+@dataclass(frozen=True)
 class AuthorizeResult:
     """Result of an authorization check."""
 

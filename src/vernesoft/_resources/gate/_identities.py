@@ -47,6 +47,34 @@ class IdentitiesResource:
         """Delete an identity."""
         self._http.delete(f"{_PATH_IDENTITIES}/{identity_id}")
 
+    def set_state(self, identity_id: str, state: str) -> Identity:
+        """Activate or deactivate an identity.
+
+        An ``inactive`` identity cannot log in — Kratos rejects its credentials
+        automatically — until it is reactivated. The identity is not deleted.
+        Fires the ``identity.state_changed`` webhook event.
+
+        :param state: ``"active"`` or ``"inactive"``.
+        """
+        data = self._http.patch(f"{_PATH_IDENTITIES}/{identity_id}/state", body={"state": state})
+        return Identity.from_dict(data)
+
+    def activate(self, identity_id: str) -> Identity:
+        """Convenience wrapper for ``set_state(identity_id, "active")``."""
+        return self.set_state(identity_id, "active")
+
+    def deactivate(self, identity_id: str) -> Identity:
+        """Convenience wrapper for ``set_state(identity_id, "inactive")``."""
+        return self.set_state(identity_id, "inactive")
+
+    def resend_verification(self, identity_id: str) -> None:
+        """Trigger a new email verification flow for an identity.
+
+        Useful when the original verification email expired or was never
+        received. The user receives a fresh verification email.
+        """
+        self._http.post(f"{_PATH_IDENTITIES}/{identity_id}/resend-verification")
+
 
 class AsyncIdentitiesResource:
     """Asynchronous Gate identities CRUD operations."""
@@ -86,3 +114,33 @@ class AsyncIdentitiesResource:
     async def delete(self, identity_id: str) -> None:
         """Delete an identity."""
         await self._http.delete(f"{_PATH_IDENTITIES}/{identity_id}")
+
+    async def set_state(self, identity_id: str, state: str) -> Identity:
+        """Activate or deactivate an identity.
+
+        An ``inactive`` identity cannot log in — Kratos rejects its credentials
+        automatically — until it is reactivated. The identity is not deleted.
+        Fires the ``identity.state_changed`` webhook event.
+
+        :param state: ``"active"`` or ``"inactive"``.
+        """
+        data = await self._http.patch(
+            f"{_PATH_IDENTITIES}/{identity_id}/state", body={"state": state}
+        )
+        return Identity.from_dict(data)
+
+    async def activate(self, identity_id: str) -> Identity:
+        """Convenience wrapper for ``set_state(identity_id, "active")``."""
+        return await self.set_state(identity_id, "active")
+
+    async def deactivate(self, identity_id: str) -> Identity:
+        """Convenience wrapper for ``set_state(identity_id, "inactive")``."""
+        return await self.set_state(identity_id, "inactive")
+
+    async def resend_verification(self, identity_id: str) -> None:
+        """Trigger a new email verification flow for an identity.
+
+        Useful when the original verification email expired or was never
+        received. The user receives a fresh verification email.
+        """
+        await self._http.post(f"{_PATH_IDENTITIES}/{identity_id}/resend-verification")

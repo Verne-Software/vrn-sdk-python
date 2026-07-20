@@ -4,7 +4,13 @@ from ._client import AsyncVerne, Verne
 from ._core.errors import VerneAPIError, VerneError
 from ._core.types import Paginated
 from ._resources.gate._gate import AsyncGate, Gate
-from ._resources.gate._types import AccessToken, AuthorizeResult, Identity, IntrospectResult
+from ._resources.gate._types import (
+    AccessToken,
+    AuthorizeResult,
+    Identity,
+    IntrospectResult,
+    SecuritySettings,
+)
 from ._resources.relay._relay import AsyncRelay, Relay
 from ._resources.relay._types import ListMessagesResponse, Message
 
@@ -28,6 +34,7 @@ __all__ = [
     "AccessToken",
     "IntrospectResult",
     "AuthorizeResult",
+    "SecuritySettings",
     # Generic
     "Paginated",
 ]
