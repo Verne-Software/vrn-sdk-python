@@ -7,6 +7,7 @@ from ._types import (
     AuthorizeResult,
     Identity,
     IntrospectResult,
+    OidcProvider,
     SecuritySettings,
 )
 
@@ -24,4 +25,5 @@ __all__ = [
     "IntrospectResult",
     "AuthorizeResult",
     "SecuritySettings",
+    "OidcProvider",
 ]

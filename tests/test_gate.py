@@ -11,6 +11,7 @@ from vernesoft._resources.gate._types import (
     AuthorizeResult,
     Identity,
     IntrospectResult,
+    OidcProvider,
     SecuritySettings,
 )
 
@@ -412,6 +413,70 @@ def test_settings_update_security(httpx_mock: HTTPXMock, gate: Gate) -> None:
     }
 
 
+def test_settings_get_oidc_providers(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{_BASE_URL}/v1/gate/settings/oidc-providers",
+        status_code=200,
+        json={
+            "providers": [
+                {"provider": "github", "enabled": True},
+                {"provider": "google", "enabled": False},
+            ]
+        },
+    )
+
+    providers = gate.settings.get_oidc_providers()
+
+    assert providers == [
+        OidcProvider(provider="github", enabled=True),
+        OidcProvider(provider="google", enabled=False),
+    ]
+
+
+def test_settings_update_oidc_providers(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    import json
+
+    httpx_mock.add_response(
+        method="PUT",
+        url=f"{_BASE_URL}/v1/gate/settings/oidc-providers",
+        status_code=200,
+        json={"providers": [{"provider": "github", "enabled": True}]},
+    )
+
+    result = gate.settings.update_oidc_providers(
+        [OidcProvider(provider="github", enabled=True)]
+    )
+
+    assert result == [OidcProvider(provider="github", enabled=True)]
+    assert json.loads(httpx_mock.get_request().content) == {
+        "providers": [{"provider": "github", "enabled": True}]
+    }
+
+
+def test_get_enabled_providers(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{_BASE_URL}/public/gate/providers/ten_001",
+        status_code=200,
+        json={"providers": ["github", "google"]},
+    )
+
+    assert gate.get_enabled_providers("ten_001") == ["github", "google"]
+
+
+def test_create_login_flow(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    flow = {"id": "flow_1", "ui": {"action": f"{_BASE_URL}/auth/x", "nodes": []}}
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{_BASE_URL}/v1/gate/auth/login",
+        status_code=200,
+        json=flow,
+    )
+
+    assert gate.create_login_flow() == flow
+
+
 # ===========================================================================
 # Async variants
 # ===========================================================================
@@ -555,3 +620,44 @@ async def test_async_settings_update_security(
         "passwordless_enabled": True,
         "mfa_enabled": False,
     }
+
+
+async def test_async_settings_get_oidc_providers(
+    httpx_mock: HTTPXMock, async_gate: AsyncGate
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{_BASE_URL}/v1/gate/settings/oidc-providers",
+        status_code=200,
+        json={"providers": [{"provider": "github", "enabled": True}]},
+    )
+
+    providers = await async_gate.settings.get_oidc_providers()
+    assert providers == [OidcProvider(provider="github", enabled=True)]
+
+
+async def test_async_get_enabled_providers(
+    httpx_mock: HTTPXMock, async_gate: AsyncGate
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{_BASE_URL}/public/gate/providers/ten_001",
+        status_code=200,
+        json={"providers": ["github"]},
+    )
+
+    assert await async_gate.get_enabled_providers("ten_001") == ["github"]
+
+
+async def test_async_create_login_flow(
+    httpx_mock: HTTPXMock, async_gate: AsyncGate
+) -> None:
+    flow = {"id": "flow_1", "ui": {"nodes": []}}
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{_BASE_URL}/v1/gate/auth/login",
+        status_code=200,
+        json=flow,
+    )
+
+    assert await async_gate.create_login_flow() == flow

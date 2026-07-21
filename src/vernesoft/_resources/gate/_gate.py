@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from ..._core.http import AsyncHttpClient, SyncHttpClient
 from ._identities import AsyncIdentitiesResource, IdentitiesResource
@@ -11,6 +11,11 @@ from ._types import AuthorizeResult
 _DEFAULT_BASE_URL = "https://api.vernesoft.com"
 _DEFAULT_TIMEOUT = 30.0
 _PATH_AUTHORIZE = "/v1/gate/authorize"
+_PATH_LOGIN_FLOW = "/v1/gate/auth/login"
+
+
+def _providers_path(tenant_id: str) -> str:
+    return f"/public/gate/providers/{tenant_id}"
 
 
 class Gate:
@@ -65,6 +70,24 @@ class Gate:
         data = self._http.post(_PATH_AUTHORIZE, body=body)
         return AuthorizeResult.from_dict(data)
 
+    def get_enabled_providers(self, tenant_id: str) -> List[str]:
+        """Return the social login providers currently enabled for a tenant.
+
+        This is a public, unauthenticated endpoint — call it from your login /
+        registration page to decide which social buttons to render.
+        """
+        data = self._http.get(_providers_path(tenant_id))
+        return data.get("providers", [])
+
+    def create_login_flow(self) -> Dict[str, Any]:
+        """Initialize a Kratos login flow using your Gate API key.
+
+        Call this from your server and pass the returned flow to your
+        browser-side code to render social login buttons. The flow already
+        contains only the providers your tenant has enabled.
+        """
+        return self._http.get(_PATH_LOGIN_FLOW)
+
 
 class AsyncGate:
     """Asynchronous client for the Verne Gate service."""
@@ -117,3 +140,21 @@ class AsyncGate:
             body["context"] = context
         data = await self._http.post(_PATH_AUTHORIZE, body=body)
         return AuthorizeResult.from_dict(data)
+
+    async def get_enabled_providers(self, tenant_id: str) -> List[str]:
+        """Return the social login providers currently enabled for a tenant.
+
+        This is a public, unauthenticated endpoint — call it from your login /
+        registration page to decide which social buttons to render.
+        """
+        data = await self._http.get(_providers_path(tenant_id))
+        return data.get("providers", [])
+
+    async def create_login_flow(self) -> Dict[str, Any]:
+        """Initialize a Kratos login flow using your Gate API key.
+
+        Call this from your server and pass the returned flow to your
+        browser-side code to render social login buttons. The flow already
+        contains only the providers your tenant has enabled.
+        """
+        return await self._http.get(_PATH_LOGIN_FLOW)

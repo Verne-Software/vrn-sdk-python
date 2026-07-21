@@ -9,6 +9,7 @@ from ._resources.gate._types import (
     AuthorizeResult,
     Identity,
     IntrospectResult,
+    OidcProvider,
     SecuritySettings,
 )
 from ._resources.relay._relay import AsyncRelay, Relay
@@ -35,6 +36,7 @@ __all__ = [
     "IntrospectResult",
     "AuthorizeResult",
     "SecuritySettings",
+    "OidcProvider",
     # Generic
     "Paginated",
 ]

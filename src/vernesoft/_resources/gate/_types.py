@@ -79,6 +79,24 @@ class SecuritySettings:
 
 
 @dataclass(frozen=True)
+class OidcProvider:
+    """A social login (OAuth 2.0 / OIDC) provider and whether it is enabled."""
+
+    provider: str
+    enabled: bool
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "OidcProvider":
+        return cls(
+            provider=str(data.get("provider", "")),
+            enabled=bool(data.get("enabled", False)),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"provider": self.provider, "enabled": self.enabled}
+
+
+@dataclass(frozen=True)
 class AuthorizeResult:
     """Result of an authorization check."""
 
