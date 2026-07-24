@@ -12,6 +12,13 @@ from ._resources.gate._types import (
     OidcProvider,
     SecuritySettings,
 )
+from ._resources.passepartout._passepartout import AsyncPassepartout, Passepartout
+from ._resources.passepartout._types import (
+    LoginStart,
+    LoginStatus,
+    TelegramUser,
+    TokenIntrospection,
+)
 from ._resources.relay._relay import AsyncRelay, Relay
 from ._resources.relay._types import ListMessagesResponse, Message
 
@@ -24,6 +31,8 @@ __all__ = [
     "AsyncRelay",
     "Gate",
     "AsyncGate",
+    "Passepartout",
+    "AsyncPassepartout",
     # Errors
     "VerneError",
     "VerneAPIError",
@@ -37,6 +46,11 @@ __all__ = [
     "AuthorizeResult",
     "SecuritySettings",
     "OidcProvider",
+    # Passepartout types
+    "LoginStart",
+    "LoginStatus",
+    "TelegramUser",
+    "TokenIntrospection",
     # Generic
     "Paginated",
 ]
