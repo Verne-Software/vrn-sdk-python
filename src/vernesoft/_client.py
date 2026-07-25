@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ._core.errors import VerneError
+from ._resources.clockwork._clockwork import AsyncClockwork, Clockwork
 from ._resources.gate._gate import AsyncGate, Gate
 from ._resources.passepartout._passepartout import AsyncPassepartout, Passepartout
 from ._resources.relay._relay import AsyncRelay, Relay
@@ -25,18 +26,21 @@ class Verne:
         relay: Optional[str] = None,
         gate: Optional[str] = None,
         passepartout: Optional[str] = None,
+        clockwork: Optional[str] = None,
         base_url: str = _DEFAULT_BASE_URL,
         timeout: float = _DEFAULT_TIMEOUT,
     ) -> None:
         self._relay_key = relay
         self._gate_key = gate
         self._passepartout_key = passepartout
+        self._clockwork_key = clockwork
         self._base_url = base_url
         self._timeout = timeout
 
         self._relay_client: Relay | None = None
         self._gate_client: Gate | None = None
         self._passepartout_client: Passepartout | None = None
+        self._clockwork_client: Clockwork | None = None
 
     @property
     def relay(self) -> Relay:
@@ -82,6 +86,22 @@ class Verne:
             )
         return self._passepartout_client
 
+    @property
+    def clockwork(self) -> Clockwork:
+        """Return the Clockwork service client, initialising it on first access."""
+        if self._clockwork_client is None:
+            if self._clockwork_key is None:
+                raise VerneError(
+                    "No Clockwork API key provided. "
+                    "Pass clockwork='vrn_clockwork_...' to Verne()."
+                )
+            self._clockwork_client = Clockwork(
+                api_key=self._clockwork_key,
+                base_url=self._base_url,
+                timeout=self._timeout,
+            )
+        return self._clockwork_client
+
 
 class AsyncVerne:
     """Unified asynchronous client for the Verne Nautilus platform.
@@ -98,18 +118,21 @@ class AsyncVerne:
         relay: Optional[str] = None,
         gate: Optional[str] = None,
         passepartout: Optional[str] = None,
+        clockwork: Optional[str] = None,
         base_url: str = _DEFAULT_BASE_URL,
         timeout: float = _DEFAULT_TIMEOUT,
     ) -> None:
         self._relay_key = relay
         self._gate_key = gate
         self._passepartout_key = passepartout
+        self._clockwork_key = clockwork
         self._base_url = base_url
         self._timeout = timeout
 
         self._relay_client: AsyncRelay | None = None
         self._gate_client: AsyncGate | None = None
         self._passepartout_client: AsyncPassepartout | None = None
+        self._clockwork_client: AsyncClockwork | None = None
 
     @property
     def relay(self) -> AsyncRelay:
@@ -156,3 +179,19 @@ class AsyncVerne:
                 timeout=self._timeout,
             )
         return self._passepartout_client
+
+    @property
+    def clockwork(self) -> AsyncClockwork:
+        """Return the AsyncClockwork service client, initialising it on first access."""
+        if self._clockwork_client is None:
+            if self._clockwork_key is None:
+                raise VerneError(
+                    "No Clockwork API key provided. "
+                    "Pass clockwork='vrn_clockwork_...' to AsyncVerne()."
+                )
+            self._clockwork_client = AsyncClockwork(
+                api_key=self._clockwork_key,
+                base_url=self._base_url,
+                timeout=self._timeout,
+            )
+        return self._clockwork_client

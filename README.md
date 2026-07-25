@@ -161,9 +161,63 @@ if not decision.allowed:
     raise PermissionError("Forbidden")
 ```
 
+## Clockwork — Cron-as-a-Service
+
+Schedule recurring HTTP callbacks with cron expressions, or one-shot jobs at a
+future time. The `tenant_id` is automatically scoped to your API key.
+
+### Cron Jobs
+
+```python
+# List all cron jobs
+jobs = verne.clockwork.jobs.list()  # list[CronJob]
+
+# Create a recurring job
+job = verne.clockwork.jobs.create(
+    name="nightly-report",
+    schedule="0 2 * * *",              # standard cron expression
+    url="https://example.com/hooks/report",
+    method="POST",                     # optional, defaults server-side
+    headers={"X-Api-Key": "secret"},   # optional
+    body='{"kind":"report"}',          # optional
+)
+
+# Partially update a job — only the fields you pass are changed
+verne.clockwork.jobs.update(job.id, schedule="0 3 * * *", is_active=False)
+
+# Inspect execution history
+executions = verne.clockwork.jobs.executions(job.id)  # list[Execution]
+
+# Delete a job
+verne.clockwork.jobs.delete(job.id)
+```
+
+### Delayed Jobs
+
+One-shot jobs that fire once at `run_at`:
+
+```python
+# Schedule a delayed job
+delayed = verne.clockwork.delayed.create(
+    name="welcome-email",
+    run_at="2026-07-26T09:00:00Z",     # ISO 8601 timestamp
+    url="https://example.com/send",
+    body='{"template":"welcome"}',      # optional
+)
+
+# List pending / completed delayed jobs
+verne.clockwork.delayed.list()  # list[DelayedJob]
+
+# Inspect execution history
+verne.clockwork.delayed.executions(delayed.id)  # list[Execution]
+
+# Cancel a pending delayed job
+verne.clockwork.delayed.cancel(delayed.id)
+```
+
 ## Async Support
 
-Every client has an async counterpart — `AsyncVerne`, `AsyncRelay`, `AsyncGate` — with the same interface, where all methods are coroutines:
+Every client has an async counterpart — `AsyncVerne`, `AsyncRelay`, `AsyncGate`, `AsyncClockwork` — with the same interface, where all methods are coroutines:
 
 ```python
 from vernesoft import AsyncVerne

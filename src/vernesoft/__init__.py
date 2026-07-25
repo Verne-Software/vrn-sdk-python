@@ -3,6 +3,8 @@
 from ._client import AsyncVerne, Verne
 from ._core.errors import VerneAPIError, VerneError
 from ._core.types import Paginated
+from ._resources.clockwork._clockwork import AsyncClockwork, Clockwork
+from ._resources.clockwork._types import CronJob, DelayedJob, Execution
 from ._resources.gate._gate import AsyncGate, Gate
 from ._resources.gate._types import (
     AccessToken,
@@ -33,6 +35,8 @@ __all__ = [
     "AsyncGate",
     "Passepartout",
     "AsyncPassepartout",
+    "Clockwork",
+    "AsyncClockwork",
     # Errors
     "VerneError",
     "VerneAPIError",
@@ -51,6 +55,10 @@ __all__ = [
     "LoginStatus",
     "TelegramUser",
     "TokenIntrospection",
+    # Clockwork types
+    "CronJob",
+    "DelayedJob",
+    "Execution",
     # Generic
     "Paginated",
 ]
