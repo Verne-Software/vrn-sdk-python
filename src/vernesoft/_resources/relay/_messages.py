@@ -22,7 +22,17 @@ class MessagesResource:
         idempotency_key: Optional[str] = None,
         channels: Optional[List[str]] = None,
     ) -> Message:
-        """Send an event via the relay service."""
+        """Send an event via the relay service.
+
+        Retried once automatically on 429, respecting ``Retry-After``.
+
+        ``idempotency_key`` deduplicates within a 24-hour window. Sending the
+        same key twice does not create a second event and does not fail: the
+        second call returns the *originally* accepted message, same ``id`` and
+        same ``timestamp``. So retrying a request whose response you never saw
+        needs no special handling — there is no duplicate to tell apart from a
+        success.
+        """
         body: Dict[str, Any] = {"event_type": event_type, "payload": payload}
         if idempotency_key is not None:
             body["idempotency_key"] = idempotency_key
@@ -38,7 +48,13 @@ class MessagesResource:
         cursor: Optional[str] = None,
         event_type: Optional[str] = None,
     ) -> ListMessagesResponse:
-        """List relay messages with optional filters and cursor pagination."""
+        """List relay messages with optional filters and cursor pagination.
+
+        ``limit`` above 100 is clamped to 100 rather than rejected. ``cursor``
+        takes a previous response's ``next_cursor``, which is ``None`` on the
+        last page — so paginate until ``has_more`` is ``False`` rather than
+        until ``data`` comes back empty.
+        """
         params: Dict[str, Any] = {"limit": limit}
         if cursor is not None:
             params["cursor"] = cursor
@@ -62,7 +78,17 @@ class AsyncMessagesResource:
         idempotency_key: Optional[str] = None,
         channels: Optional[List[str]] = None,
     ) -> Message:
-        """Send an event via the relay service."""
+        """Send an event via the relay service.
+
+        Retried once automatically on 429, respecting ``Retry-After``.
+
+        ``idempotency_key`` deduplicates within a 24-hour window. Sending the
+        same key twice does not create a second event and does not fail: the
+        second call returns the *originally* accepted message, same ``id`` and
+        same ``timestamp``. So retrying a request whose response you never saw
+        needs no special handling — there is no duplicate to tell apart from a
+        success.
+        """
         body: Dict[str, Any] = {"event_type": event_type, "payload": payload}
         if idempotency_key is not None:
             body["idempotency_key"] = idempotency_key
@@ -78,7 +104,13 @@ class AsyncMessagesResource:
         cursor: Optional[str] = None,
         event_type: Optional[str] = None,
     ) -> ListMessagesResponse:
-        """List relay messages with optional filters and cursor pagination."""
+        """List relay messages with optional filters and cursor pagination.
+
+        ``limit`` above 100 is clamped to 100 rather than rejected. ``cursor``
+        takes a previous response's ``next_cursor``, which is ``None`` on the
+        last page — so paginate until ``has_more`` is ``False`` rather than
+        until ``data`` comes back empty.
+        """
         params: Dict[str, Any] = {"limit": limit}
         if cursor is not None:
             params["cursor"] = cursor

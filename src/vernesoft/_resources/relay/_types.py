@@ -6,7 +6,12 @@ from typing import Any, Dict, List, Optional
 
 @dataclass(frozen=True)
 class Message:
-    """A relay message (sent event)."""
+    """A relay message (sent event).
+
+    ``status`` is always ``"accepted"``. It records that Relay took the event,
+    not what each subscriber endpoint did with it afterwards — per-endpoint
+    delivery state lives in the Console under Dashboard → Relay.
+    """
 
     id: str
     event_type: str
@@ -25,7 +30,11 @@ class Message:
 
 @dataclass(frozen=True)
 class ListMessagesResponse:
-    """Paginated list of relay messages."""
+    """Paginated list of relay messages.
+
+    ``next_cursor`` is ``None`` on the last page, so paginate until ``has_more``
+    is ``False`` rather than until ``data`` comes back empty.
+    """
 
     data: List[Message]
     has_more: bool
