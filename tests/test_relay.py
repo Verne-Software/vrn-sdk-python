@@ -100,25 +100,38 @@ def test_send_400_error(httpx_mock: HTTPXMock, relay: Relay) -> None:
     assert "event_type" in str(err)
 
 
-def test_send_409_duplicate(httpx_mock: HTTPXMock, relay: Relay) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        url=f"{_BASE_URL}/v1/relay/messages",
-        status_code=409,
-        json={
-            "error": {
-                "code": "duplicate_idempotency_key",
-                "message": "Event already processed.",
-                "request_id": "req_dup",
-            }
-        },
+def test_send_replays_a_repeated_idempotency_key(
+    httpx_mock: HTTPXMock, relay: Relay
+) -> None:
+    """A repeated idempotency key replays; it does not fail.
+
+    This asserted a 409 until the gateway grew a translation layer for
+    ``/v1/relay/*`` and the reference was corrected to match what Relay actually
+    does: the second send returns 202 with the *originally* accepted message,
+    same id and same timestamp. Nothing here has to tell a duplicate apart from
+    a success, which is the point.
+
+    Error mapping is still covered — on statuses the API really returns — by
+    ``test_send_400_error`` and the 429 tests.
+    """
+    for _ in range(2):
+        httpx_mock.add_response(
+            method="POST",
+            url=f"{_BASE_URL}/v1/relay/messages",
+            status_code=202,
+            json=_MSG_PAYLOAD,
+        )
+
+    first = relay.messages.send(
+        event_type="user.created", payload={"n": 1}, idempotency_key="dup_key"
+    )
+    second = relay.messages.send(
+        event_type="user.created", payload={"n": 2}, idempotency_key="dup_key"
     )
 
-    with pytest.raises(VerneAPIError) as exc_info:
-        relay.messages.send(event_type="user.created", payload={}, idempotency_key="dup_key")
-
-    assert exc_info.value.status == 409
-    assert exc_info.value.code == "duplicate_idempotency_key"
+    assert second.id == first.id
+    assert second.timestamp == first.timestamp
+    assert second.status == "accepted"
 
 
 def test_send_429_retries_and_succeeds(httpx_mock: HTTPXMock, relay: Relay) -> None:
