@@ -111,7 +111,9 @@ class Gate:
           is the role they hold. Prefer ``gate.organizations.authorize()`` / ``can()``,
           which build the resource.
         - any other resource — only *is* ``subject`` *one of your active end users?*;
-          ``reason`` is a sentence for people.
+          ``reason`` is ``owned_by_tenant`` (allowed), ``subject_inactive``,
+          ``not_owned_by_tenant`` or ``not_a_known_identity``, and ``message`` says it in
+          a sentence for your logs.
 
         ``context`` is accepted and ignored by the API today.
         """

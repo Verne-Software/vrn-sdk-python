@@ -43,6 +43,19 @@ All notable changes to `vernesoft`. The format follows
 - `pytest -m integration`: an opt-in suite against a running stack, and
   `scripts/local_stack_key.py` to make a throwaway local tenant for it.
 
+### Changed
+
+- Aligned with the API changes of October 2026: `AuthorizeResult` gains `message`, and
+  `REASON_OWNED_BY_TENANT`, `REASON_NOT_OWNED_BY_TENANT` and
+  `REASON_NOT_A_KNOWN_IDENTITY` join the constants (with `REASON_SUBJECT_INACTIVE`, the
+  codes of a check on a resource that is not an organization); the sentence that check
+  used to put in `reason` is now `message`. `sessions.revoke_all()` is documented as
+  succeeding for a user with no session (`204`, it was a `404`). Docs and comments name
+  `invalid_payload` (not `invalid_request`) for a malformed token request and treat
+  Clockwork errors as the standard envelope; the string-form and numeric-code parsing
+  stays as a fallback. Identities no longer carry `metadata_public.verne_tenant_id`;
+  the SDK never read it.
+
 ### Fixed
 
 - `gate.tokens.create()` sent the key in the request body without an `Authorization`

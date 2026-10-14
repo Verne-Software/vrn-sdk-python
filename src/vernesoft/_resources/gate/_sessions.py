@@ -35,8 +35,11 @@ class SessionsResource:
         """Revoke every session of an end user — "log out everywhere". Signed tokens
         already issued keep verifying until their own ``exp`` (at most 15 minutes).
 
-        Note: the API answers ``404`` (raised as :class:`VerneAPIError`, code
-        ``unknown``) when the user has no session at all.
+        Idempotent: a user of yours with no session at all is a success too. An id that is
+        not one of your users — another account's, unknown, or one you deleted — is
+        ``403 forbidden``. ``404 not_found`` is rare: a user removed from the identity
+        service other than through ``identities.delete()``, which Gate still remembered
+        as yours.
         """
         self._http.delete(_identity_sessions_path(identity_id))
 
@@ -70,7 +73,7 @@ class AsyncSessionsResource:
         return _sessions(await self._http.get(_identity_sessions_path(identity_id)))
 
     async def revoke_all(self, identity_id: str) -> None:
-        """Revoke every session of an end user. ``404`` when the user has none."""
+        """Revoke every session of an end user; a success also when the user has none."""
         await self._http.delete(_identity_sessions_path(identity_id))
 
     async def revoke(self, session_id: str) -> None:

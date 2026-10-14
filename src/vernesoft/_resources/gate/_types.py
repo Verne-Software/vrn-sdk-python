@@ -159,16 +159,26 @@ REASON_NOT_A_MEMBER = "not_a_member"
 REASON_SUBJECT_INACTIVE = "subject_inactive"
 REASON_NO_SUCH_ORGANIZATION = "no_such_organization"
 
+#: ``reason`` values of a check on any other resource — *is the subject one of your
+#: active end users?* — with ``REASON_SUBJECT_INACTIVE``. ``owned_by_tenant`` is the one
+#: ``allowed=True`` answer.
+REASON_OWNED_BY_TENANT = "owned_by_tenant"
+REASON_NOT_OWNED_BY_TENANT = "not_owned_by_tenant"
+REASON_NOT_A_KNOWN_IDENTITY = "not_a_known_identity"
+
 
 @dataclass(frozen=True)
 class AuthorizeResult:
     """An authorization decision.
 
-    For an organization resource ``reason`` is one of the ``REASON_*`` constants
-    (``member_with_permission``, ``member_without_permission``, ``not_a_member``,
-    ``subject_inactive``, ``no_such_organization``) and ``role`` is the role the user
-    holds there (present for the first two and ``subject_inactive``). For any other
-    resource ``reason`` is a sentence for people, not a value to branch on.
+    ``reason`` is a code to branch on, one of the ``REASON_*`` constants. For an
+    organization resource it is ``member_with_permission``, ``member_without_permission``,
+    ``not_a_member``, ``subject_inactive`` or ``no_such_organization``, and ``role`` is
+    the role the user holds there (present for the first two and ``subject_inactive``).
+    For any other resource it is ``owned_by_tenant`` (allowed), ``subject_inactive``,
+    ``not_owned_by_tenant`` or ``not_a_known_identity``, and ``message`` says the same in
+    a sentence for your logs — its wording can change; only ``reason`` is a contract.
+    The set is open: treat a value you do not know as a denial.
     """
 
     allowed: bool
@@ -176,14 +186,18 @@ class AuthorizeResult:
     decision_id: str
     reason: str = ""
     role: Optional[str] = None
+    #: The decision as a sentence, for a resource that is not an organization; else None.
+    message: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "AuthorizeResult":
+        message = data.get("message")
         return cls(
             allowed=data.get("allowed") is True,
             decision_id=data.get("decision_id", ""),
             reason=data.get("reason") or "",
             role=data.get("role"),
+            message=message if isinstance(message, str) else None,
         )
 
 

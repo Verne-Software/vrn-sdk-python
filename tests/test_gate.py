@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pytest_httpx import HTTPXMock
 
-from vernesoft import AsyncGate, Gate, VerneAPIError
+from vernesoft import REASON_NOT_OWNED_BY_TENANT, REASON_OWNED_BY_TENANT, AsyncGate, Gate, VerneAPIError
 from vernesoft._resources.gate._types import (
     AccessToken,
     AuthorizeResult,
@@ -67,7 +67,8 @@ _INTROSPECT_PAYLOAD = {
 _AUTHORIZE_PAYLOAD = {
     "allowed": True,
     "decision_id": "dec_9f8a7c",
-    "reason": "subject `usr_123` is an identity owned by tenant `ten_001`",
+    "reason": "owned_by_tenant",
+    "message": "subject `usr_123` is an identity owned by tenant `ten_001`",
 }
 
 
@@ -327,7 +328,8 @@ def test_authorize_allowed(httpx_mock: HTTPXMock, gate: Gate) -> None:
     assert isinstance(result, AuthorizeResult)
     assert result.allowed is True
     assert result.decision_id == "dec_9f8a7c"
-    assert result.reason == "subject `usr_123` is an identity owned by tenant `ten_001`"
+    assert result.reason == REASON_OWNED_BY_TENANT
+    assert result.message == "subject `usr_123` is an identity owned by tenant `ten_001`"
     assert result.role is None
 
 
@@ -339,7 +341,7 @@ def test_authorize_denied(httpx_mock: HTTPXMock, gate: Gate) -> None:
         json={
             "allowed": False,
             "decision_id": "dec_deny",
-            "reason": "insufficient permissions",
+            "reason": "not_owned_by_tenant",
         },
     )
 
@@ -351,6 +353,8 @@ def test_authorize_denied(httpx_mock: HTTPXMock, gate: Gate) -> None:
 
     assert result.allowed is False
     assert result.decision_id == "dec_deny"
+    assert result.reason == REASON_NOT_OWNED_BY_TENANT
+    assert result.message is None
 
 
 def test_authorize_with_context(httpx_mock: HTTPXMock, gate: Gate) -> None:

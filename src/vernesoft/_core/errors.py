@@ -24,9 +24,11 @@ class VerneAPIError(VerneError):
     """Raised when the API answers with an error status.
 
     Branch on ``status`` and ``code``. Codes are an open set of strings — compare against
-    the ones you handle and treat the rest generically. ``code`` is ``"unknown"`` when the
-    response carried no string code (a Clockwork engine error, a pass-through body from
-    the identity service, a body that is not JSON).
+    the ones you handle and treat the rest generically. Every API route answers with the
+    envelope ``{"error": {"code", "message", "request_id"}}``; ``code`` is ``"unknown"``
+    only for a body in another shape, read as a fallback — the string form Clockwork
+    used before October 2026, an identity-service body with a numeric code (still what
+    Kratos' own ``/auth/*`` self-service routes answer), a body that is not JSON.
 
     :ivar code: machine-readable code, e.g. ``"invalid_payload"``, ``"forbidden"``,
         ``"conflict"``, ``"mfa_required"``, ``"ACTIVE_USER_LIMIT_REACHED"``.

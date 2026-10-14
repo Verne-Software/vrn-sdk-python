@@ -94,7 +94,31 @@ def test_402_is_never_retried(httpx_mock: HTTPXMock, sleeps: List[float]) -> Non
     assert len(httpx_mock.get_requests()) == 1
 
 
-def test_string_error_keeps_its_sentence(httpx_mock: HTTPXMock) -> None:
+def test_clockwork_error_is_the_standard_envelope(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/clockwork/jobs",
+        status_code=400,
+        json={
+            "error": {
+                "code": "invalid_payload",
+                "message": "Invalid cron schedule.",
+                "request_id": "req_cw",
+            }
+        },
+    )
+    clockwork = Clockwork(api_key=_API_KEY, base_url=_BASE_URL)
+    with pytest.raises(VerneAPIError) as exc_info:
+        clockwork.jobs.create(name="x", schedule="nope", url="https://example.com")
+    err = exc_info.value
+    assert (err.code, err.message, err.request_id) == (
+        "invalid_payload",
+        "Invalid cron schedule.",
+        "req_cw",
+    )
+
+
+def test_older_string_error_keeps_its_sentence(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="POST",
         url=f"{_BASE_URL}/v1/clockwork/jobs",
@@ -140,11 +164,11 @@ def test_envelope_without_request_id(httpx_mock: HTTPXMock) -> None:
         method="POST",
         url=f"{_BASE_URL}/v1/gate/tokens",
         status_code=400,
-        json={"error": {"code": "invalid_request", "message": "subject is required"}},
+        json={"error": {"code": "invalid_payload", "message": "subject is required"}},
     )
     with pytest.raises(VerneAPIError) as exc_info:
         Gate(api_key=_API_KEY, base_url=_BASE_URL).tokens.create(subject="")
-    assert exc_info.value.code == "invalid_request"
+    assert exc_info.value.code == "invalid_payload"
     assert exc_info.value.request_id is None
 
 

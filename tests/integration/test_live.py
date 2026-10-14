@@ -26,6 +26,9 @@ import httpx
 import pytest
 
 from vernesoft import (
+    REASON_NOT_A_KNOWN_IDENTITY,
+    REASON_OWNED_BY_TENANT,
+    REASON_SUBJECT_INACTIVE,
     AsyncVerne,
     Clockwork,
     Gate,
@@ -283,9 +286,30 @@ def test_authorize_and_can_every_reason(gate: Gate) -> None:
     assert orgs.can(S.org.id, S.member.id, "members:invite") is False
     expect_api_error(lambda: orgs.can(S.org.id, S.member.id, "Invoices:*"), 400, "invalid_payload")
 
-    # The plain ownership check still works, and says so in a sentence.
+    # The plain ownership check: a code in `reason`, the sentence in `message`.
     owned = gate.authorize(subject=S.member.id, action="read", resource="doc:1")
-    assert owned.allowed is True
+    assert (owned.allowed, owned.reason) == (True, REASON_OWNED_BY_TENANT)
+    assert "is an identity owned by tenant" in (owned.message or "")
+    nobody = gate.authorize(subject=str(uuid.uuid4()), action="read", resource="doc:1")
+    assert (nobody.allowed, nobody.reason) == (False, REASON_NOT_A_KNOWN_IDENTITY)
+    not_an_id = gate.authorize(subject="usr_123", action="read", resource="doc:1")
+    assert not_an_id.reason == REASON_NOT_A_KNOWN_IDENTITY
+    gate.identities.deactivate(S.outsider.id)
+    try:
+        off = gate.authorize(subject=S.outsider.id, action="read", resource="doc:1")
+        assert (off.allowed, off.reason) == (False, REASON_SUBJECT_INACTIVE)
+    finally:
+        gate.identities.activate(S.outsider.id)
+
+
+def test_a_malformed_token_request_is_invalid_payload_with_a_request_id(gate: Gate) -> None:
+    err = expect_api_error(lambda: gate.tokens.create(subject=""), 400, "invalid_payload")
+    assert (err.request_id or "").startswith("req_")
+
+
+def test_identities_no_longer_carry_the_owner_stamp(gate: Gate) -> None:
+    read = gate.identities.get(S.member.id)
+    assert "verne_tenant_id" not in repr(read.raw)
 
 
 def test_introspection_lists_the_end_users_organizations(gate: Gate) -> None:
@@ -353,9 +377,14 @@ def test_sessions_check_mfa_signed_token_verify_revoke(gate: Gate) -> None:
     assert gate.sessions.check(second).active is True
     gate.sessions.revoke_all(S.member.id)
     expect_api_error(lambda: gate.sessions.check(second), 401, "unauthorized")
-    # ...and on a user who never had one it is Kratos' own 404 body (numeric code).
-    err = expect_api_error(lambda: gate.sessions.revoke_all(S.outsider.id), 404)
-    assert err.code == "unknown"
+    # ...is idempotent — a user who never signed in is a success, twice over...
+    gate.sessions.revoke_all(S.outsider.id)
+    gate.sessions.revoke_all(S.outsider.id)
+    # ...and an id that is not one of your users (unknown, or deleted through the API) is 403.
+    expect_api_error(lambda: gate.sessions.revoke_all(str(uuid.uuid4())), 403, "forbidden")
+    gone = gate.identities.create(traits={"email": email("gone")})
+    gate.identities.delete(gone.id)
+    expect_api_error(lambda: gate.sessions.revoke_all(gone.id), 403, "forbidden")
 
 
 def test_audit_log_records_membership_changes_filtered_and_paged(gate: Gate) -> None:
@@ -462,16 +491,17 @@ def test_clockwork_usage_reports_the_plan() -> None:
     assert isinstance(usage.delayed.pending, int)
 
 
-def test_clockwork_string_error_keeps_its_sentence() -> None:
+def test_clockwork_error_is_the_standard_envelope() -> None:
     clockwork = Clockwork(api_key=KEY or "", base_url=BASE_URL)
     err = expect_api_error(
         lambda: clockwork.jobs.create(
             name="sdkpy-bad", schedule="not a schedule", url="https://example.com"
         ),
         400,
-        "unknown",
+        "invalid_payload",
     )
     assert "cron" in str(err).lower()
+    assert (err.request_id or "").startswith("req_")
 
 
 # ===========================================================================

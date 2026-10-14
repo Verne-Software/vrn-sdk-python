@@ -170,7 +170,12 @@ decision = verne.gate.organizations.authorize(org.id, identity.id, "invoices:wri
 
 `reason` is one of `member_with_permission`, `member_without_permission`, `not_a_member`, `subject_inactive`, `no_such_organization` (constants `vernesoft.REASON_*`); `role` is set when the user is a member. The match is exact (no wildcards) and live. A permission no role could hold (`Invoices:*`, the `nautilus:` prefix) raises `400 invalid_payload`, never `False`.
 
-`gate.authorize(subject=…, action=…, resource=…)` is the same endpoint; with any resource that is not `organization:<id>` it only says whether `subject` is one of your active end users, and `reason` is a sentence for people.
+`gate.authorize(subject=…, action=…, resource=…)` is the same endpoint; with any resource that is not `organization:<id>` it only says whether `subject` is one of your active end users. Its `reason` is a code too: `owned_by_tenant` (the one `allowed=True`), `subject_inactive`, `not_owned_by_tenant`, `not_a_known_identity` (constants `vernesoft.REASON_*`). The sentence a person would read is in `message`, for your logs — its wording can change, `reason` is the contract.
+
+```python
+decision = verne.gate.authorize(subject=identity.id, action="read", resource="doc:1")
+# AuthorizeResult(allowed=True, decision_id='dec_…', reason='owned_by_tenant', role=None, message='subject `…` is an identity owned by tenant `…`')
+```
 
 ### Sessions
 
@@ -181,8 +186,10 @@ check = verne.gate.sessions.check(session_token)
 
 sessions = verne.gate.sessions.list(identity.id)
 verne.gate.sessions.revoke(sessions[0].id)  # one device
-verne.gate.sessions.revoke_all(identity.id) # everywhere (404 when the user has no session)
+verne.gate.sessions.revoke_all(identity.id) # everywhere
 ```
+
+`revoke_all()` succeeds also when the user has no session, so a "log out everywhere" button can be pressed twice. An id that is not one of your users (another account's, unknown, or one you deleted) is `403 forbidden`.
 
 With MFA required, `check()` raises a `VerneAPIError` with code `mfa_required` and `details["required_aal"] == "aal2"`; start a step-up flow. A dead, foreign or unknown session is `401`.
 
@@ -380,7 +387,7 @@ except VerneError as e:
 
 | Status | `code` | Meaning |
 |:--|:--|:--|
-| 400 | `invalid_payload` (`invalid_request` from `tokens.create`) | Something in the request is malformed; the message says what. |
+| 400 | `invalid_payload` | Something in the request is malformed; the message says what. |
 | 401 | `unauthorized` | No key, or a revoked or invalid one; for a session, a dead session. |
 | 402 | `ACTIVE_USER_LIMIT_REACHED`, `UPGRADE_REQUIRED`, `JOB_LIMIT_REACHED`, `PROJECT_LIMIT_REACHED`, `BILLING_HARD_BLOCKED`, `SUBSCRIPTION_PAST_DUE`, `payment_required` | A plan or billing limit. Does not lift by waiting — the SDK never retries it. |
 | 403 | `forbidden` | The key lacks the scope for this API (the message names it), or the resource is not yours. |
@@ -390,7 +397,7 @@ except VerneError as e:
 | 429 | `rate_limited`, `RELAY_MESSAGE_LIMIT_REACHED` | Too fast, or Relay's monthly limit (read `retry_after`). |
 | 5xx | `upstream_unavailable`, `internal_error` | Retry; quote `request_id` to support. |
 
-Codes are an open set; treat unknown ones generically. Errors that are not in the standard envelope (some Clockwork refusals, a few identity-service answers) arrive with `code == "unknown"` and their sentence as the message; `e.body` keeps the raw parsed body.
+Codes are an open set; treat unknown ones generically. Every API route, Clockwork's included, answers in this envelope with a string `code` and a `request_id`. A body in another shape (one that did not come from the API — a proxy in between, an identity-service answer passed through on `/auth/*`) still raises a `VerneAPIError`, with `code == "unknown"` and its sentence as the message; `e.body` keeps the raw parsed body.
 
 **Retries.** A `POST` that gets a short `429` (a `Retry-After` of 60 seconds or less, or none) is retried once after waiting. Relay's monthly limit (`429 RELAY_MESSAGE_LIMIT_REACHED`, `Retry-After` until the 1st of next month) and every `402` are raised at once.
 
