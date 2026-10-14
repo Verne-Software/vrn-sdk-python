@@ -15,7 +15,7 @@ from vernesoft._resources.gate._types import (
     SecuritySettings,
 )
 
-_API_KEY = "vrn_gate_test_sk_testkey"
+_API_KEY = "vrn_3b1e5d7a9c0f2e4d"
 _BASE_URL = "https://api.vernesoft.com"
 
 # ---------------------------------------------------------------------------
@@ -41,15 +41,16 @@ _IDENTITY_PAYLOAD = {
     "id": "identity_123",
     "schema_id": "user",
     "state": "active",
-    "traits": {
-        "email": "user@example.com",
-        "tenant_id": "ten_001",
-        "custom_data": {"role": "editor"},
-    },
+    "traits": {"email": "user@example.com", "locale": "en"},
+    "metadata_public": {"plan": "pro"},
+    "created_at": "2026-03-17T12:00:00Z",
+    "updated_at": "2026-03-17T12:00:00Z",
+    "verifiable_addresses": [{"value": "user@example.com", "verified": False, "via": "email"}],
+    "credentials": {"password": {"type": "password"}},
 }
 
 _TOKEN_PAYLOAD = {
-    "access_token": "gat_test_at_abc123",
+    "access_token": "gat_live_abc123",
     "expires_at": "2026-03-17T12:00:00Z",
     "subject": "usr_123",
     "tenant_id": "ten_001",
@@ -66,7 +67,7 @@ _INTROSPECT_PAYLOAD = {
 _AUTHORIZE_PAYLOAD = {
     "allowed": True,
     "decision_id": "dec_9f8a7c",
-    "reason": "subject has role=admin on tenant:ten_001",
+    "reason": "subject `usr_123` is an identity owned by tenant `ten_001`",
 }
 
 
@@ -85,7 +86,7 @@ def test_identity_create(httpx_mock: HTTPXMock, gate: Gate) -> None:
 
     identity = gate.identities.create(
         schema_id="user",
-        traits={"email": "user@example.com", "custom_data": {"role": "editor"}},
+        traits={"email": "user@example.com", "locale": "en"},
         credentials={"password": {"config": {"password": "Secret123!"}}},
         state="active",
     )
@@ -95,7 +96,12 @@ def test_identity_create(httpx_mock: HTTPXMock, gate: Gate) -> None:
     assert identity.schema_id == "user"
     assert identity.state == "active"
     assert identity.traits["email"] == "user@example.com"
-    assert identity.traits["tenant_id"] == "ten_001"
+    assert identity.traits["locale"] == "en"
+    assert identity.metadata_public == {"plan": "pro"}
+    assert identity.created_at == "2026-03-17T12:00:00Z"
+    assert identity.verifiable_addresses[0]["value"] == "user@example.com"
+    # Fields the SDK does not type stay reachable.
+    assert identity.raw["credentials"] == {"password": {"type": "password"}}
 
     request = httpx_mock.get_request()
     assert request is not None
@@ -116,7 +122,7 @@ def test_identity_get(httpx_mock: HTTPXMock, gate: Gate) -> None:
 
 def test_identity_patch(httpx_mock: HTTPXMock, gate: Gate) -> None:
     patched = dict(_IDENTITY_PAYLOAD)
-    patched["traits"] = {**_IDENTITY_PAYLOAD["traits"], "custom_data": {"role": "admin"}}
+    patched["traits"] = {**_IDENTITY_PAYLOAD["traits"], "email": "new@example.com"}
 
     httpx_mock.add_response(
         method="PATCH",
@@ -127,10 +133,10 @@ def test_identity_patch(httpx_mock: HTTPXMock, gate: Gate) -> None:
 
     updated = gate.identities.patch(
         "identity_123",
-        [{"op": "replace", "path": "/traits/custom_data/role", "value": "admin"}],
+        [{"op": "replace", "path": "/traits/email", "value": "new@example.com"}],
     )
 
-    assert updated.traits["custom_data"]["role"] == "admin"
+    assert updated.traits["email"] == "new@example.com"
 
 
 def test_identity_delete(httpx_mock: HTTPXMock, gate: Gate) -> None:
@@ -230,8 +236,8 @@ def test_identity_get_not_found(httpx_mock: HTTPXMock, gate: Gate) -> None:
 # ===========================================================================
 
 
-def test_tokens_create_no_auth_header(httpx_mock: HTTPXMock, gate: Gate) -> None:
-    """POST /v1/gate/tokens must NOT send Authorization header; api_key goes in body."""
+def test_tokens_create_sends_auth_header(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    """POST /v1/gate/tokens authenticates with the header; the key is never in the body."""
     httpx_mock.add_response(
         method="POST",
         url=f"{_BASE_URL}/v1/gate/tokens",
@@ -242,19 +248,17 @@ def test_tokens_create_no_auth_header(httpx_mock: HTTPXMock, gate: Gate) -> None
     token = gate.tokens.create(subject="usr_123", scopes=["gate.tokens.read"])
 
     assert isinstance(token, AccessToken)
-    assert token.access_token == "gat_test_at_abc123"
+    assert token.access_token == "gat_live_abc123"
     assert token.subject == "usr_123"
     assert token.tenant_id == "ten_001"
 
     request = httpx_mock.get_request()
     assert request is not None
-    # The crucial assertion: no Authorization header
-    assert "Authorization" not in request.headers
-    # api_key should be in the request body
+    assert request.headers["Authorization"] == f"Bearer {_API_KEY}"
     import json
 
     body = json.loads(request.content)
-    assert body["api_key"] == _API_KEY
+    assert "api_key" not in body
     assert body["subject"] == "usr_123"
     assert body["scopes"] == ["gate.tokens.read"]
 
@@ -270,7 +274,7 @@ def test_tokens_create_with_ttl(httpx_mock: HTTPXMock, gate: Gate) -> None:
     import json
 
     token = gate.tokens.create(subject="usr_123", ttl_seconds=7200)
-    assert token.access_token == "gat_test_at_abc123"
+    assert token.access_token == "gat_live_abc123"
 
     request = httpx_mock.get_request()
     assert request is not None
@@ -286,7 +290,7 @@ def test_tokens_introspect(httpx_mock: HTTPXMock, gate: Gate) -> None:
         json=_INTROSPECT_PAYLOAD,
     )
 
-    info = gate.tokens.introspect("gat_test_at_abc123")
+    info = gate.tokens.introspect("gat_live_abc123")
 
     assert isinstance(info, IntrospectResult)
     assert info.active is True
@@ -316,14 +320,15 @@ def test_authorize_allowed(httpx_mock: HTTPXMock, gate: Gate) -> None:
 
     result = gate.authorize(
         subject="usr_123",
-        action="relay.messages.read",
-        resource="tenant:ten_001",
+        action="documents:read",
+        resource="document:42",
     )
 
     assert isinstance(result, AuthorizeResult)
     assert result.allowed is True
     assert result.decision_id == "dec_9f8a7c"
-    assert result.reason == "subject has role=admin on tenant:ten_001"
+    assert result.reason == "subject `usr_123` is an identity owned by tenant `ten_001`"
+    assert result.role is None
 
 
 def test_authorize_denied(httpx_mock: HTTPXMock, gate: Gate) -> None:
@@ -341,7 +346,7 @@ def test_authorize_denied(httpx_mock: HTTPXMock, gate: Gate) -> None:
     result = gate.authorize(
         subject="usr_456",
         action="relay.messages.write",
-        resource="tenant:ten_001",
+        resource="document:42",
     )
 
     assert result.allowed is False
@@ -360,8 +365,8 @@ def test_authorize_with_context(httpx_mock: HTTPXMock, gate: Gate) -> None:
 
     result = gate.authorize(
         subject="usr_123",
-        action="relay.messages.read",
-        resource="tenant:ten_001",
+        action="documents:read",
+        resource="document:42",
         context={"ip": "1.2.3.4"},
     )
     assert result.allowed is True
@@ -498,7 +503,7 @@ async def test_async_identity_create(httpx_mock: HTTPXMock, async_gate: AsyncGat
     assert identity.state == "active"
 
 
-async def test_async_tokens_create_no_auth_header(
+async def test_async_tokens_create_sends_auth_header(
     httpx_mock: HTTPXMock, async_gate: AsyncGate
 ) -> None:
     httpx_mock.add_response(
@@ -509,11 +514,12 @@ async def test_async_tokens_create_no_auth_header(
     )
 
     token = await async_gate.tokens.create(subject="usr_123")
-    assert token.access_token == "gat_test_at_abc123"
+    assert token.access_token == "gat_live_abc123"
 
     request = httpx_mock.get_request()
     assert request is not None
-    assert "Authorization" not in request.headers
+    assert request.headers["Authorization"] == f"Bearer {_API_KEY}"
+    assert "api_key" not in request.content.decode()
 
 
 async def test_async_tokens_introspect(httpx_mock: HTTPXMock, async_gate: AsyncGate) -> None:
@@ -524,7 +530,7 @@ async def test_async_tokens_introspect(httpx_mock: HTTPXMock, async_gate: AsyncG
         json=_INTROSPECT_PAYLOAD,
     )
 
-    info = await async_gate.tokens.introspect("gat_test_at_abc123")
+    info = await async_gate.tokens.introspect("gat_live_abc123")
     assert info.active is True
     assert info.scopes == ["gate.tokens.read"]
 
@@ -539,8 +545,8 @@ async def test_async_authorize(httpx_mock: HTTPXMock, async_gate: AsyncGate) -> 
 
     result = await async_gate.authorize(
         subject="usr_123",
-        action="relay.messages.read",
-        resource="tenant:ten_001",
+        action="documents:read",
+        resource="document:42",
     )
     assert result.allowed is True
 

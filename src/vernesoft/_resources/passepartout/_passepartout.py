@@ -40,7 +40,12 @@ class Passepartout:
         return LoginStatus.from_dict(data)
 
     def introspect(self, access_token: str) -> TokenIntrospection:
-        """Introspect a Passepartout access token."""
+        """Introspect a Passepartout access token.
+
+        An unknown or expired token, or one whose user was deactivated, is
+        ``active=False`` with nothing else. ``orgs`` lists the end user's organizations
+        in the key's project, read now.
+        """
         body: Dict[str, Any] = {"access_token": access_token}
         data = self._http.post(_PATH_INTROSPECT, body=body)
         return TokenIntrospection.from_dict(data)
@@ -69,7 +74,12 @@ class AsyncPassepartout:
         return LoginStatus.from_dict(data)
 
     async def introspect(self, access_token: str) -> TokenIntrospection:
-        """Introspect a Passepartout access token."""
+        """Introspect a Passepartout access token.
+
+        An unknown or expired token, or one whose user was deactivated, is
+        ``active=False`` with nothing else. ``orgs`` lists the end user's organizations
+        in the key's project, read now.
+        """
         body: Dict[str, Any] = {"access_token": access_token}
         data = await self._http.post(_PATH_INTROSPECT, body=body)
         return TokenIntrospection.from_dict(data)

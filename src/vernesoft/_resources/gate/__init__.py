@@ -1,15 +1,44 @@
+from ._audit_log import AsyncAuditLogResource, AuditLogResource
 from ._gate import AsyncGate, Gate
 from ._identities import AsyncIdentitiesResource, IdentitiesResource
+from ._lifecycle import AsyncLifecycleResource, LifecycleResource
+from ._organizations import (
+    AsyncMembersResource,
+    AsyncOrganizationsResource,
+    AsyncRolesResource,
+    MembersResource,
+    OrganizationsResource,
+    RolesResource,
+)
+from ._sessions import AsyncSessionsResource, SessionsResource
 from ._settings import AsyncSettingsResource, SettingsResource
 from ._tokens import AsyncTokensResource, TokensResource
 from ._types import (
     AccessToken,
+    AuditActor,
+    AuditLogEntry,
+    AuditTarget,
     AuthorizeResult,
     Identity,
+    IdentityTraitsInput,
     IntrospectResult,
+    LifecycleAction,
+    LifecycleRule,
+    LifecycleRulePreview,
+    LifecycleRules,
+    Member,
+    OidcExchangeResult,
     OidcProvider,
+    Organization,
+    OrgClaim,
+    Role,
     SecuritySettings,
+    Session,
+    SessionCheck,
+    SignedToken,
+    SignedTokenClaims,
 )
+from ._verifier import AsyncGateTokenVerifier, GateTokenVerifier
 
 __all__ = [
     "Gate",
@@ -20,10 +49,41 @@ __all__ = [
     "AsyncTokensResource",
     "SettingsResource",
     "AsyncSettingsResource",
+    "OrganizationsResource",
+    "AsyncOrganizationsResource",
+    "RolesResource",
+    "AsyncRolesResource",
+    "MembersResource",
+    "AsyncMembersResource",
+    "SessionsResource",
+    "AsyncSessionsResource",
+    "AuditLogResource",
+    "AsyncAuditLogResource",
+    "LifecycleResource",
+    "AsyncLifecycleResource",
+    "GateTokenVerifier",
+    "AsyncGateTokenVerifier",
     "Identity",
+    "IdentityTraitsInput",
     "AccessToken",
     "IntrospectResult",
     "AuthorizeResult",
     "SecuritySettings",
     "OidcProvider",
+    "OidcExchangeResult",
+    "OrgClaim",
+    "Organization",
+    "Role",
+    "Member",
+    "Session",
+    "SessionCheck",
+    "SignedToken",
+    "SignedTokenClaims",
+    "AuditLogEntry",
+    "AuditActor",
+    "AuditTarget",
+    "LifecycleRule",
+    "LifecycleRules",
+    "LifecycleRulePreview",
+    "LifecycleAction",
 ]

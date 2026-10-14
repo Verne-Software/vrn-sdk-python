@@ -10,7 +10,7 @@ from pytest_httpx import HTTPXMock
 from vernesoft import AsyncClockwork, Clockwork, VerneAPIError
 from vernesoft._resources.clockwork._types import CronJob, DelayedJob, Execution
 
-_API_KEY = "vrn_clockwork_test_sk_testkey"
+_API_KEY = "vrn_7c4a1f9e3d2b8a0c"
 _BASE_URL = "https://api.vernesoft.com"
 
 # ---------------------------------------------------------------------------

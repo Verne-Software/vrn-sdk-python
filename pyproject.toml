@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vernesoft"
-version = "1.3.0"
+version = "1.4.0"
 description = "Official Python SDK for the Verne Nautilus platform"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
 authors = [{ name = "Verne Software" }]
-keywords = ["verne", "nautilus", "webhook", "relay", "auth", "gate", "sdk"]
+keywords = ["verne", "nautilus", "webhook", "relay", "auth", "gate", "cron", "jwt", "sdk"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -31,7 +31,9 @@ Documentation = "https://docs.vernesoft.com"
 Repository = "https://github.com/Verne-Software/vrn-sdk-python"
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "pytest-httpx", "mypy", "ruff"]
+# Offline verification of Gate signed tokens (GateTokenVerifier, tokens.verify_signed).
+jwt = ["cryptography>=41"]
+dev = ["pytest", "pytest-asyncio", "pytest-httpx", "mypy", "ruff", "cryptography>=41"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vernesoft"]
@@ -45,3 +47,6 @@ strict = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# The live suite (tests/integration) runs only on request: `pytest -m integration`.
+addopts = "-m 'not integration'"
+markers = ["integration: opt-in tests against a running Nautilus stack (VERNE_API_KEY)"]

@@ -87,6 +87,9 @@ class Execution:
     response_status: Optional[int]
     response_body: Optional[str]
     error_message: Optional[str]
+    #: Which attempt this row records, from 1: a failed run that is retried gets one row
+    #: per attempt. ``None`` from a server that predates it.
+    attempt: Optional[int] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Execution":
@@ -100,4 +103,48 @@ class Execution:
             response_status=data.get("response_status"),
             response_body=data.get("response_body"),
             error_message=data.get("error_message"),
+            attempt=data.get("attempt"),
+        )
+
+
+@dataclass(frozen=True)
+class CronUsage:
+    """Active cron jobs and the plan's ceiling (``None`` for no limit)."""
+
+    active: int
+    limit: Optional[int]
+
+
+@dataclass(frozen=True)
+class DelayedUsage:
+    """Pending delayed jobs and the plan's ceiling (``None`` for no limit)."""
+
+    pending: int
+    limit: Optional[int]
+
+
+@dataclass(frozen=True)
+class ClockworkUsage:
+    """What the account uses of Clockwork against its plan's limits."""
+
+    #: The plan, e.g. ``free``, ``pro``.
+    plan: str
+    #: The same value as ``plan`` (the API returns both).
+    tier: str
+    cron: CronUsage
+    delayed: DelayedUsage
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ClockworkUsage":
+        raw_cron = data.get("cron")
+        cron: Dict[str, Any] = raw_cron if isinstance(raw_cron, dict) else {}
+        raw_delayed = data.get("delayed")
+        delayed: Dict[str, Any] = raw_delayed if isinstance(raw_delayed, dict) else {}
+        return cls(
+            plan=data.get("plan", ""),
+            tier=data.get("tier", data.get("plan", "")),
+            cron=CronUsage(active=int(cron.get("active") or 0), limit=cron.get("limit")),
+            delayed=DelayedUsage(
+                pending=int(delayed.get("pending") or 0), limit=delayed.get("limit")
+            ),
         )
