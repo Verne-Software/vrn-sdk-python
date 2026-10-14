@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from ..gate._types import OrgClaim
+
 
 @dataclass(frozen=True)
 class LoginStart:
@@ -71,13 +73,26 @@ class TokenIntrospection:
     tenant_id: Optional[str] = None
     scopes: List[str] = field(default_factory=list)
     expires_at: Optional[str] = None
+    #: The end user's organizations in the key's project, read live (first 100).
+    #: ``None`` when the token is inactive.
+    orgs: Optional[List[OrgClaim]] = None
+    #: ``True``, and only then, when there are more than ``orgs`` shows — list them with
+    #: ``gate.identities.list_organizations()``.
+    orgs_truncated: bool = False
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "TokenIntrospection":
+        orgs = data.get("orgs")
         return cls(
-            active=data["active"],
+            active=bool(data.get("active", False)),
             subject=data.get("subject"),
             tenant_id=data.get("tenant_id"),
-            scopes=data.get("scopes", []),
+            scopes=list(data.get("scopes") or []),
             expires_at=data.get("expires_at"),
+            orgs=(
+                [OrgClaim.from_dict(o) for o in orgs if isinstance(o, dict)]
+                if isinstance(orgs, list)
+                else None
+            ),
+            orgs_truncated=data.get("orgs_truncated") is True,
         )

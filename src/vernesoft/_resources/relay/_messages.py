@@ -24,9 +24,11 @@ class MessagesResource:
     ) -> Message:
         """Send an event via the relay service.
 
-        Retried once automatically on 429, respecting ``Retry-After``.
+        Retried once automatically on a short ``429`` (``Retry-After`` of 60 seconds or
+        less). The monthly message limit (``429 RELAY_MESSAGE_LIMIT_REACHED``) and a
+        ``402`` are raised at once; read ``retry_after`` on the error.
 
-        ``idempotency_key`` deduplicates within a 24-hour window. Sending the
+        ``idempotency_key`` deduplicates within a 12-hour window. Sending the
         same key twice does not create a second event and does not fail: the
         second call returns the *originally* accepted message, same ``id`` and
         same ``timestamp``. So retrying a request whose response you never saw
@@ -80,9 +82,11 @@ class AsyncMessagesResource:
     ) -> Message:
         """Send an event via the relay service.
 
-        Retried once automatically on 429, respecting ``Retry-After``.
+        Retried once automatically on a short ``429`` (``Retry-After`` of 60 seconds or
+        less). The monthly message limit (``429 RELAY_MESSAGE_LIMIT_REACHED``) and a
+        ``402`` are raised at once; read ``retry_after`` on the error.
 
-        ``idempotency_key`` deduplicates within a 24-hour window. Sending the
+        ``idempotency_key`` deduplicates within a 12-hour window. Sending the
         same key twice does not create a second event and does not fail: the
         second call returns the *originally* accepted message, same ``id`` and
         same ``timestamp``. So retrying a request whose response you never saw

@@ -15,7 +15,7 @@ from vernesoft._resources.passepartout._types import (
     TokenIntrospection,
 )
 
-_API_KEY = "vrn_passepartout_test_sk_testkey"
+_API_KEY = "vrn_5e2d8b0a4c6f1e3a"
 _BASE_URL = "https://api.vernesoft.com"
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@ from pytest_httpx import HTTPXMock
 from vernesoft import AsyncRelay, Relay, VerneAPIError
 from vernesoft._resources.relay._types import ListMessagesResponse, Message
 
-_API_KEY = "vrn_relay_test_sk_testkey"
+_API_KEY = "vrn_9f8a7c2d1e0b4a6f"
 _BASE_URL = "https://api.vernesoft.com"
 
 # ---------------------------------------------------------------------------

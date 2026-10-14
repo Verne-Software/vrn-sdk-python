@@ -9,8 +9,8 @@ from vernesoft import AsyncVerne, Verne, VerneError
 from vernesoft._resources.gate._gate import AsyncGate, Gate
 from vernesoft._resources.relay._relay import AsyncRelay, Relay
 
-_RELAY_KEY = "vrn_relay_test_sk_testkey"
-_GATE_KEY = "vrn_gate_test_sk_testkey"
+_RELAY_KEY = "vrn_9f8a7c2d1e0b4a6f"
+_GATE_KEY = "vrn_3b1e5d7a9c0f2e4d"
 _BASE_URL = "https://api.vernesoft.com"
 
 _MSG_PAYLOAD = {
@@ -24,7 +24,7 @@ _IDENTITY_PAYLOAD = {
     "id": "identity_456",
     "schema_id": "user",
     "state": "active",
-    "traits": {"email": "x@y.com", "tenant_id": "ten_001"},
+    "traits": {"email": "x@y.com"},
 }
 
 
@@ -215,3 +215,75 @@ async def test_async_verne_both_services(httpx_mock: HTTPXMock) -> None:
 
     assert msg.event_type == "user.created"
     assert identity.schema_id == "user"
+
+
+# ===========================================================================
+# One shared key (api_key), per-service keys override it
+# ===========================================================================
+
+_SHARED_KEY = "vrn_0a1b2c3d4e5f6a7b"
+
+
+def test_shared_key_reaches_every_service(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="POST", url=f"{_BASE_URL}/v1/relay/messages", status_code=202, json=_MSG_PAYLOAD
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/gate/identities",
+        status_code=201,
+        json=_IDENTITY_PAYLOAD,
+    )
+    httpx_mock.add_response(method="GET", url=f"{_BASE_URL}/v1/clockwork/jobs", json=[])
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/passepartout/login/start",
+        json={"nonce": "n", "deep_link": "tg://x", "expires_at": "2026-10-14T10:00:00Z"},
+    )
+
+    verne = Verne(api_key=_SHARED_KEY, base_url=_BASE_URL)
+    verne.relay.messages.send(event_type="user.created", payload={})
+    verne.gate.identities.create(traits={"email": "x@y.com"})
+    verne.clockwork.jobs.list()
+    verne.passepartout.login_start()
+
+    for request in httpx_mock.get_requests():
+        assert request.headers["Authorization"] == f"Bearer {_SHARED_KEY}"
+
+
+def test_per_service_key_overrides_the_shared_one(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="POST", url=f"{_BASE_URL}/v1/relay/messages", status_code=202, json=_MSG_PAYLOAD
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/gate/identities",
+        status_code=201,
+        json=_IDENTITY_PAYLOAD,
+    )
+
+    verne = Verne(api_key=_SHARED_KEY, relay=_RELAY_KEY, base_url=_BASE_URL)
+    verne.relay.messages.send(event_type="user.created", payload={})
+    verne.gate.identities.create(traits={"email": "x@y.com"})
+
+    relay_request, gate_request = httpx_mock.get_requests()
+    assert relay_request.headers["Authorization"] == f"Bearer {_RELAY_KEY}"
+    assert gate_request.headers["Authorization"] == f"Bearer {_SHARED_KEY}"
+
+
+async def test_async_shared_key(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(method="GET", url=f"{_BASE_URL}/v1/clockwork/jobs", json=[])
+    verne = AsyncVerne(api_key=_SHARED_KEY, base_url=_BASE_URL)
+    await verne.clockwork.jobs.list()
+    request = httpx_mock.get_request()
+    assert request is not None
+    assert request.headers["Authorization"] == f"Bearer {_SHARED_KEY}"
+
+
+def test_no_key_names_api_key_first() -> None:
+    with pytest.raises(VerneError) as exc_info:
+        _ = Verne().clockwork
+    message = str(exc_info.value)
+    assert message.index("api_key") < message.index("clockwork=")
+    with pytest.raises(VerneError, match="api_key"):
+        _ = AsyncVerne().passepartout

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from ..._core.http import AsyncHttpClient, SyncHttpClient
+from ..._core.http import AsyncHttpClient, SyncHttpClient, seg
 from ._types import DelayedJob, Execution
 
 _PATH_DELAYED = "/v1/clockwork/delayed"
@@ -46,11 +46,11 @@ class DelayedResource:
 
     def cancel(self, job_id: str) -> None:
         """Cancel a pending delayed job."""
-        self._http.delete(f"{_PATH_DELAYED}/{job_id}")
+        self._http.delete(f"{_PATH_DELAYED}/{seg(job_id)}")
 
     def executions(self, job_id: str) -> List[Execution]:
         """Return the execution history for a delayed job."""
-        data = self._http.get(f"{_PATH_DELAYED}/{job_id}/executions")
+        data = self._http.get(f"{_PATH_DELAYED}/{seg(job_id)}/executions")
         return [Execution.from_dict(x) for x in data]
 
 
@@ -92,9 +92,9 @@ class AsyncDelayedResource:
 
     async def cancel(self, job_id: str) -> None:
         """Cancel a pending delayed job."""
-        await self._http.delete(f"{_PATH_DELAYED}/{job_id}")
+        await self._http.delete(f"{_PATH_DELAYED}/{seg(job_id)}")
 
     async def executions(self, job_id: str) -> List[Execution]:
         """Return the execution history for a delayed job."""
-        data = await self._http.get(f"{_PATH_DELAYED}/{job_id}/executions")
+        data = await self._http.get(f"{_PATH_DELAYED}/{seg(job_id)}/executions")
         return [Execution.from_dict(x) for x in data]

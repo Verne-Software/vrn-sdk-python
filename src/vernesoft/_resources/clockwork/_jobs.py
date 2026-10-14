@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from ..._core.http import AsyncHttpClient, SyncHttpClient
+from ..._core.http import AsyncHttpClient, SyncHttpClient, seg
 from ._types import CronJob, Execution
 
 _PATH_JOBS = "/v1/clockwork/jobs"
@@ -72,16 +72,16 @@ class JobsResource:
             payload["body"] = body
         if is_active is not None:
             payload["is_active"] = is_active
-        data = self._http.patch(f"{_PATH_JOBS}/{job_id}", body=payload)
+        data = self._http.patch(f"{_PATH_JOBS}/{seg(job_id)}", body=payload)
         return CronJob.from_dict(data)
 
     def delete(self, job_id: str) -> None:
         """Delete a cron job."""
-        self._http.delete(f"{_PATH_JOBS}/{job_id}")
+        self._http.delete(f"{_PATH_JOBS}/{seg(job_id)}")
 
     def executions(self, job_id: str) -> List[Execution]:
         """Return the execution history for a cron job."""
-        data = self._http.get(f"{_PATH_JOBS}/{job_id}/executions")
+        data = self._http.get(f"{_PATH_JOBS}/{seg(job_id)}/executions")
         return [Execution.from_dict(x) for x in data]
 
 
@@ -149,14 +149,14 @@ class AsyncJobsResource:
             payload["body"] = body
         if is_active is not None:
             payload["is_active"] = is_active
-        data = await self._http.patch(f"{_PATH_JOBS}/{job_id}", body=payload)
+        data = await self._http.patch(f"{_PATH_JOBS}/{seg(job_id)}", body=payload)
         return CronJob.from_dict(data)
 
     async def delete(self, job_id: str) -> None:
         """Delete a cron job."""
-        await self._http.delete(f"{_PATH_JOBS}/{job_id}")
+        await self._http.delete(f"{_PATH_JOBS}/{seg(job_id)}")
 
     async def executions(self, job_id: str) -> List[Execution]:
         """Return the execution history for a cron job."""
-        data = await self._http.get(f"{_PATH_JOBS}/{job_id}/executions")
+        data = await self._http.get(f"{_PATH_JOBS}/{seg(job_id)}/executions")
         return [Execution.from_dict(x) for x in data]
