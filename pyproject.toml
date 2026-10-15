@@ -4,22 +4,37 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vernesoft"
-version = "1.4.0"
-description = "Official Python SDK for the Verne Nautilus platform"
+version = "1.4.1"
+description = "Official Python SDK for Nautilus by Verne Software: sign-in and users, webhook delivery, cron jobs and Telegram sign-in. Hosted in France."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
 authors = [{ name = "Verne Software" }]
-keywords = ["verne", "nautilus", "webhook", "relay", "auth", "gate", "cron", "jwt", "sdk"]
+keywords = [
+    "nautilus",
+    "verne",
+    "sdk",
+    "authentication",
+    "webhooks",
+    "cron",
+    "telegram-login",
+    "jwt",
+    "ory-kratos",
+    "svix",
+    "gdpr",
+    "eu-hosted",
+]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Framework :: AsyncIO",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
@@ -28,7 +43,8 @@ dependencies = ["httpx>=0.27.0"]
 [project.urls]
 Homepage = "https://vernesoft.com"
 Documentation = "https://docs.vernesoft.com"
-Repository = "https://github.com/Verne-Software/vrn-sdk-python"
+Source = "https://github.com/Verne-Software/vrn-sdk-python"
+Changelog = "https://github.com/Verne-Software/vrn-sdk-python/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 # Offline verification of Gate signed tokens (GateTokenVerifier, tokens.verify_signed).
