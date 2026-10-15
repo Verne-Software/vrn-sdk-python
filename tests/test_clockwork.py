@@ -437,3 +437,115 @@ async def test_async_jobs_not_found(
 
     assert exc_info.value.status == 404
     assert exc_info.value.code == "not_found"
+
+
+# ---------------------------------------------------------------------------
+# Time zones
+# ---------------------------------------------------------------------------
+
+
+def test_jobs_create_sends_timezone_and_reads_it_back(
+    httpx_mock: HTTPXMock, clockwork: Clockwork
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/clockwork/jobs",
+        status_code=201,
+        json={
+            **_CRON_PAYLOAD,
+            "schedule": "0 9 * * *",
+            "timezone": "Europe/Paris",
+            "next_run_at": "2026-10-16T07:00:00Z",
+        },
+    )
+
+    job = clockwork.jobs.create(
+        name="morning",
+        schedule="0 9 * * *",
+        url="https://example.com/hook",
+        timezone="Europe/Paris",
+    )
+
+    assert job.timezone == "Europe/Paris"
+    assert job.next_run_at == "2026-10-16T07:00:00Z"
+    request = httpx_mock.get_request()
+    assert request is not None
+    assert json.loads(request.content) == {
+        "name": "morning",
+        "schedule": "0 9 * * *",
+        "url": "https://example.com/hook",
+        "timezone": "Europe/Paris",
+    }
+
+
+def test_jobs_update_sends_only_the_new_timezone(
+    httpx_mock: HTTPXMock, clockwork: Clockwork
+) -> None:
+    httpx_mock.add_response(
+        method="PATCH",
+        url=f"{_BASE_URL}/v1/clockwork/jobs/cron_123",
+        json={**_CRON_PAYLOAD, "timezone": "America/New_York"},
+    )
+
+    job = clockwork.jobs.update("cron_123", timezone="America/New_York")
+
+    assert job.timezone == "America/New_York"
+    request = httpx_mock.get_request()
+    assert request is not None
+    assert json.loads(request.content) == {"timezone": "America/New_York"}
+
+
+def test_a_job_without_timezone_in_the_answer_is_utc() -> None:
+    assert CronJob.from_dict(_CRON_PAYLOAD).timezone == "UTC"
+
+
+def test_an_unknown_timezone_is_400_invalid_payload(
+    httpx_mock: HTTPXMock, clockwork: Clockwork
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/clockwork/jobs",
+        status_code=400,
+        json={
+            "error": {
+                "code": "invalid_payload",
+                "message": 'Unknown timezone "Mars/Olympus".',
+                "request_id": "req_tz",
+            }
+        },
+    )
+
+    with pytest.raises(VerneAPIError) as exc:
+        clockwork.jobs.create(
+            name="x", schedule="0 9 * * *", url="https://example.com", timezone="Mars/Olympus"
+        )
+
+    assert exc.value.status == 400
+    assert exc.value.code == "invalid_payload"
+
+
+async def test_async_jobs_create_and_update_send_timezone(
+    httpx_mock: HTTPXMock, async_clockwork: AsyncClockwork
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/clockwork/jobs",
+        status_code=201,
+        json={**_CRON_PAYLOAD, "timezone": "Europe/Paris"},
+    )
+    httpx_mock.add_response(
+        method="PATCH",
+        url=f"{_BASE_URL}/v1/clockwork/jobs/cron_123",
+        json={**_CRON_PAYLOAD, "timezone": "Asia/Kolkata"},
+    )
+
+    created = await async_clockwork.jobs.create(
+        name="n", schedule="0 9 * * *", url="https://example.com", timezone="Europe/Paris"
+    )
+    updated = await async_clockwork.jobs.update("cron_123", timezone="Asia/Kolkata")
+
+    assert created.timezone == "Europe/Paris"
+    assert updated.timezone == "Asia/Kolkata"
+    requests = httpx_mock.get_requests()
+    assert json.loads(requests[0].content)["timezone"] == "Europe/Paris"
+    assert json.loads(requests[1].content) == {"timezone": "Asia/Kolkata"}

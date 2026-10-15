@@ -4,7 +4,22 @@ All notable changes to `vernesoft`. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [1.4.1] — unreleased
+## [1.5.0] — unreleased
+
+### Added
+
+- **Time zones for cron jobs**: `CronJob.timezone` (an IANA name, `"UTC"` unless set — also
+  for an answer without the field), and `timezone=` on `clockwork.jobs.create()` and
+  `update()`, sync and async. `"0 9 * * *"` in `"Europe/Paris"` runs at 09:00 Paris time all
+  year round; `next_run_at` stays in UTC. An unknown zone is `400 invalid_payload`.
+- **Importing users**: `gate.identities.create()` gains `email_verified=` (`True` creates
+  the user with the address already confirmed) and `metadata_public=`, sync and async.
+  `credentials` is typed as `IdentityCredentialsInput` — `password.config.password` or
+  `.hashed_password` (bcrypt), and `oidc.config.providers` (`OidcProviderLink`) — and
+  still accepts any mapping, sent as given. The new TypedDicts are exported.
+- `vernesoft.__version__` is `"1.5.0"`.
+
+## [1.4.1] — 2026-10-15
 
 ### Changed
 

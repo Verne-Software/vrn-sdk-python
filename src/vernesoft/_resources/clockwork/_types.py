@@ -21,6 +21,9 @@ class CronJob:
     next_run_at: Optional[str]
     created_at: str
     updated_at: str
+    #: IANA time zone ``schedule`` is read in, e.g. ``"Europe/Paris"``; ``"UTC"`` unless set.
+    #: ``next_run_at`` and every other timestamp stay in UTC.
+    timezone: str = "UTC"
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "CronJob":
@@ -38,6 +41,7 @@ class CronJob:
             next_run_at=data.get("next_run_at"),
             created_at=data["created_at"],
             updated_at=data["updated_at"],
+            timezone=data.get("timezone") or "UTC",
         )
 
 

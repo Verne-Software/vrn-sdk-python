@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from pytest_httpx import HTTPXMock
 
-from vernesoft import REASON_NOT_OWNED_BY_TENANT, REASON_OWNED_BY_TENANT, AsyncGate, Gate, VerneAPIError
+from vernesoft import (
+    REASON_NOT_OWNED_BY_TENANT,
+    REASON_OWNED_BY_TENANT,
+    AsyncGate,
+    Gate,
+    IdentityCredentialsInput,
+    VerneAPIError,
+)
 from vernesoft._resources.gate._types import (
     AccessToken,
     AuthorizeResult,
@@ -671,3 +680,106 @@ async def test_async_create_login_flow(
     )
 
     assert await async_gate.create_login_flow() == flow
+
+
+# ---------------------------------------------------------------------------
+# Importing users
+# ---------------------------------------------------------------------------
+
+
+def test_identity_create_for_an_import(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/gate/identities",
+        status_code=201,
+        json={
+            "id": "identity_456",
+            "schema_id": "user",
+            "state": "active",
+            "traits": {"email": "ada@example.com"},
+            "metadata_public": {"previous_user_id": "auth0|64f1c0ffee"},
+            "verifiable_addresses": [
+                {
+                    "value": "ada@example.com",
+                    "verified": True,
+                    "via": "email",
+                    "status": "completed",
+                }
+            ],
+        },
+    )
+    credentials: IdentityCredentialsInput = {
+        "password": {
+            "config": {
+                "hashed_password": "$2b$10$pl0VVKxZkNvtC9ttGwsT8.vPL8qWeEevw4a6FraeqQR8GQ6mT63NG"
+            }
+        },
+        "oidc": {
+            "config": {"providers": [{"provider": "google", "subject": "109876543210987654321"}]}
+        },
+    }
+
+    identity = gate.identities.create(
+        traits={"email": "ada@example.com"},
+        credentials=credentials,
+        email_verified=True,
+        metadata_public={"previous_user_id": "auth0|64f1c0ffee"},
+    )
+
+    assert identity.verifiable_addresses[0]["verified"] is True
+    assert identity.metadata_public == {"previous_user_id": "auth0|64f1c0ffee"}
+    request = httpx_mock.get_request()
+    assert request is not None
+    assert json.loads(request.content) == {
+        "schema_id": "user",
+        "traits": {"email": "ada@example.com"},
+        "state": "active",
+        "credentials": credentials,
+        "email_verified": True,
+        "metadata_public": {"previous_user_id": "auth0|64f1c0ffee"},
+    }
+
+
+def test_identity_create_leaves_out_what_is_not_given(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/gate/identities",
+        status_code=201,
+        json=_IDENTITY_PAYLOAD,
+    )
+
+    gate.identities.create(traits={"email": "a@b.c"}, email_verified=False)
+
+    request = httpx_mock.get_request()
+    assert request is not None
+    assert json.loads(request.content) == {
+        "schema_id": "user",
+        "traits": {"email": "a@b.c"},
+        "state": "active",
+        "email_verified": False,
+    }
+
+
+async def test_async_identity_create_sends_email_verified_and_metadata(
+    httpx_mock: HTTPXMock, async_gate: AsyncGate
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{_BASE_URL}/v1/gate/identities",
+        status_code=201,
+        json=_IDENTITY_PAYLOAD,
+    )
+
+    await async_gate.identities.create(
+        traits={"email": "a@b.c"},
+        credentials={"password": {"config": {"hashed_password": "$2b$10$abc"}}},
+        email_verified=True,
+        metadata_public={"k": 1},
+    )
+
+    request = httpx_mock.get_request()
+    assert request is not None
+    body = json.loads(request.content)
+    assert body["email_verified"] is True
+    assert body["metadata_public"] == {"k": 1}
+    assert body["credentials"] == {"password": {"config": {"hashed_password": "$2b$10$abc"}}}
