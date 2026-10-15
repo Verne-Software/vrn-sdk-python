@@ -28,13 +28,22 @@ class JobsResource:
         method: Optional[str] = None,
         headers: Optional[Dict[str, Any]] = None,
         body: Optional[str] = None,
+        timezone: Optional[str] = None,
     ) -> CronJob:
-        """Create a new cron job."""
+        """Create a new cron job.
+
+        ``timezone`` is the IANA zone ``schedule`` is read in, e.g. ``"Europe/Paris"``:
+        ``"0 9 * * *"`` is then 09:00 in Paris all year round, across daylight-saving
+        changes. ``"UTC"`` when left out. An unknown name (or an offset such as
+        ``"+02:00"``) is ``400 invalid_payload``.
+        """
         payload: Dict[str, Any] = {
             "name": name,
             "schedule": schedule,
             "url": url,
         }
+        if timezone is not None:
+            payload["timezone"] = timezone
         if method is not None:
             payload["method"] = method
         if headers is not None:
@@ -55,13 +64,19 @@ class JobsResource:
         headers: Optional[Dict[str, Any]] = None,
         body: Optional[str] = None,
         is_active: Optional[bool] = None,
+        timezone: Optional[str] = None,
     ) -> CronJob:
-        """Partially update a cron job — only provided fields are changed."""
+        """Partially update a cron job — only provided fields are changed.
+
+        A new ``timezone`` (IANA name) or ``schedule`` recomputes ``next_run_at`` at once.
+        """
         payload: Dict[str, Any] = {}
         if name is not None:
             payload["name"] = name
         if schedule is not None:
             payload["schedule"] = schedule
+        if timezone is not None:
+            payload["timezone"] = timezone
         if url is not None:
             payload["url"] = url
         if method is not None:
@@ -105,13 +120,16 @@ class AsyncJobsResource:
         method: Optional[str] = None,
         headers: Optional[Dict[str, Any]] = None,
         body: Optional[str] = None,
+        timezone: Optional[str] = None,
     ) -> CronJob:
-        """Create a new cron job."""
+        """Create a new cron job. See :meth:`JobsResource.create`."""
         payload: Dict[str, Any] = {
             "name": name,
             "schedule": schedule,
             "url": url,
         }
+        if timezone is not None:
+            payload["timezone"] = timezone
         if method is not None:
             payload["method"] = method
         if headers is not None:
@@ -132,13 +150,19 @@ class AsyncJobsResource:
         headers: Optional[Dict[str, Any]] = None,
         body: Optional[str] = None,
         is_active: Optional[bool] = None,
+        timezone: Optional[str] = None,
     ) -> CronJob:
-        """Partially update a cron job — only provided fields are changed."""
+        """Partially update a cron job — only provided fields are changed.
+
+        A new ``timezone`` (IANA name) or ``schedule`` recomputes ``next_run_at`` at once.
+        """
         payload: Dict[str, Any] = {}
         if name is not None:
             payload["name"] = name
         if schedule is not None:
             payload["schedule"] = schedule
+        if timezone is not None:
+            payload["timezone"] = timezone
         if url is not None:
             payload["url"] = url
         if method is not None:

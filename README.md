@@ -111,6 +111,23 @@ verne.gate.identities.activate(identity.id)
 verne.gate.identities.resend_verification(identity.id)
 ```
 
+**Importing users** from another system: send the bcrypt hash of their password instead of the password, the social accounts they signed in with, `email_verified=True` if that system had already confirmed the address, and your metadata — all in one call. `credentials` is typed (`IdentityCredentialsInput`); a plain dict works too.
+
+```python
+imported = verne.gate.identities.create(
+    traits={"email": "ada@example.com"},
+    credentials={
+        "password": {"config": {"hashed_password": "$2b$10$pl0VVKxZkNvtC9ttGwsT8.vPL8qWeEevw4a6FraeqQR8GQ6mT63NG"}},
+        "oidc": {"config": {"providers": [{"provider": "google", "subject": "109876543210987654321"}]}},
+    },
+    email_verified=True,  # the address starts confirmed; Gate sends no mail to check it
+    metadata_public={"previous_user_id": "auth0|64f1c0ffee"},
+)
+imported.verifiable_addresses[0]["verified"]  # True
+```
+
+The user then signs in with their original password. Without `email_verified=True` a new user's address starts unconfirmed.
+
 Your own fields about a user go in **custom metadata**, not in traits:
 
 ```python
@@ -319,6 +336,18 @@ job = verne.clockwork.jobs.create(
     headers={"X-Api-Key": "secret"},   # optional
     body='{"kind":"report"}',          # optional
 )
+
+# Read the schedule in a time zone: 09:00 in Paris all year round —
+# 07:00 UTC in summer, 08:00 UTC in winter. Without `timezone` a job is UTC.
+morning = verne.clockwork.jobs.create(
+    name="morning-digest",
+    schedule="0 9 * * *",
+    url="https://example.com/hooks/digest",
+    timezone="Europe/Paris",           # IANA name; an unknown one is 400 invalid_payload
+)
+morning.timezone     # "Europe/Paris"
+morning.next_run_at  # in UTC, e.g. "2026-10-16T07:00:00Z"
+verne.clockwork.jobs.update(morning.id, timezone="America/New_York")
 
 jobs = verne.clockwork.jobs.list()                                       # list[CronJob]
 verne.clockwork.jobs.update(job.id, schedule="0 3 * * *", is_active=False)  # partial

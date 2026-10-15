@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vernesoft"
-version = "1.4.1"
+version = "1.5.0"
 description = "Official Python SDK for Nautilus by Verne Software: sign-in and users, webhook delivery, cron jobs and Telegram sign-in. Hosted in France."
 readme = "README.md"
 license = "MIT"

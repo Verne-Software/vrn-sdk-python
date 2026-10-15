@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Union
 
 from ..._core.http import AsyncHttpClient, SyncHttpClient, seg
 from ..._core.types import Paginated
-from ._types import Identity, IdentityTraitsInput, OrgClaim
+from ._types import Identity, IdentityCredentialsInput, IdentityTraitsInput, OrgClaim
 
 _PATH_IDENTITIES = "/v1/gate/identities"
 
@@ -13,15 +13,26 @@ def _identity_path(identity_id: str) -> str:
     return f"{_PATH_IDENTITIES}/{seg(identity_id)}"
 
 
+#: ``credentials`` of :meth:`IdentitiesResource.create`: the typed shape, or any mapping
+#: (sent as given).
+Credentials = Union[IdentityCredentialsInput, Mapping[str, Any]]
+
+
 def _create_body(
     schema_id: str,
     traits: IdentityTraitsInput,
-    credentials: Optional[Dict[str, Any]],
+    credentials: Optional[Credentials],
     state: str,
+    email_verified: Optional[bool],
+    metadata_public: Optional[Mapping[str, Any]],
 ) -> Dict[str, Any]:
     body: Dict[str, Any] = {"schema_id": schema_id, "traits": dict(traits), "state": state}
     if credentials is not None:
-        body["credentials"] = credentials
+        body["credentials"] = dict(credentials)
+    if email_verified is not None:
+        body["email_verified"] = email_verified
+    if metadata_public is not None:
+        body["metadata_public"] = dict(metadata_public)
     return body
 
 
@@ -41,8 +52,10 @@ class IdentitiesResource:
         *,
         traits: IdentityTraitsInput,
         schema_id: str = "user",
-        credentials: Optional[Dict[str, Any]] = None,
+        credentials: Optional[Credentials] = None,
         state: str = "active",
+        email_verified: Optional[bool] = None,
+        metadata_public: Optional[Mapping[str, Any]] = None,
     ) -> Identity:
         """Create an end user bound to your tenant.
 
@@ -50,9 +63,19 @@ class IdentitiesResource:
         other; keep your own fields in custom metadata (:meth:`update_metadata`). A
         ``409 conflict`` means you already have an end user with this address; the same
         address at another tenant is a different person and does not conflict.
+
+        To import a user from another system, pass the bcrypt hash of their password
+        (``credentials={"password": {"config": {"hashed_password": "$2b$10$…"}}}``), the
+        social accounts they used (``"oidc": {"config": {"providers": [...]}}``),
+        ``email_verified=True`` if that system had already confirmed the address (Gate
+        sends no mail to check it; left out or ``False``, the address starts unconfirmed)
+        and your ``metadata_public`` (the user can read it; keep secrets out).
         """
         data = self._http.post(
-            _PATH_IDENTITIES, body=_create_body(schema_id, traits, credentials, state)
+            _PATH_IDENTITIES,
+            body=_create_body(
+                schema_id, traits, credentials, state, email_verified, metadata_public
+            ),
         )
         return Identity.from_dict(data)
 
@@ -135,13 +158,18 @@ class AsyncIdentitiesResource:
         *,
         traits: IdentityTraitsInput,
         schema_id: str = "user",
-        credentials: Optional[Dict[str, Any]] = None,
+        credentials: Optional[Credentials] = None,
         state: str = "active",
+        email_verified: Optional[bool] = None,
+        metadata_public: Optional[Mapping[str, Any]] = None,
     ) -> Identity:
         """Create an end user bound to your tenant. See
         :meth:`IdentitiesResource.create`."""
         data = await self._http.post(
-            _PATH_IDENTITIES, body=_create_body(schema_id, traits, credentials, state)
+            _PATH_IDENTITIES,
+            body=_create_body(
+                schema_id, traits, credentials, state, email_verified, metadata_public
+            ),
         )
         return Identity.from_dict(data)
 
