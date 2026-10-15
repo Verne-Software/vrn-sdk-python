@@ -28,6 +28,7 @@ from ._resources.gate._types import (
     AuditTarget,
     AuthorizeResult,
     Identity,
+    IdentityCredentialsInput,
     IdentityTraitsInput,
     IntrospectResult,
     LifecycleAction,
@@ -36,10 +37,15 @@ from ._resources.gate._types import (
     LifecycleRulePreview,
     LifecycleRules,
     Member,
+    OidcConfigInput,
+    OidcCredentialInput,
     OidcExchangeResult,
     OidcProvider,
+    OidcProviderLink,
     Organization,
     OrgClaim,
+    PasswordConfigInput,
+    PasswordCredentialInput,
     Role,
     SecuritySettings,
     Session,
@@ -58,7 +64,7 @@ from ._resources.passepartout._types import (
 from ._resources.relay._relay import AsyncRelay, Relay
 from ._resources.relay._types import ListMessagesResponse, Message
 
-__version__ = "1.4.1"
+__version__ = "1.5.0"
 
 __all__ = [
     "__version__",
@@ -88,6 +94,12 @@ __all__ = [
     # Gate types
     "Identity",
     "IdentityTraitsInput",
+    "IdentityCredentialsInput",
+    "PasswordCredentialInput",
+    "PasswordConfigInput",
+    "OidcCredentialInput",
+    "OidcConfigInput",
+    "OidcProviderLink",
     "AccessToken",
     "IntrospectResult",
     "AuthorizeResult",

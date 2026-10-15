@@ -20,6 +20,47 @@ class IdentityTraitsInput(_IdentityTraitsRequired, total=False):
     locale: str
 
 
+class PasswordConfigInput(TypedDict, total=False):
+    """Give ``password`` or ``hashed_password``, not both."""
+
+    #: The initial password, in clear.
+    password: str
+    #: A bcrypt hash (``$2a$…`` or ``$2b$…``) of the user's existing password; the user
+    #: then signs in with their original password.
+    hashed_password: str
+
+
+class PasswordCredentialInput(TypedDict):
+    config: PasswordConfigInput
+
+
+class OidcProviderLink(TypedDict):
+    """A social account linked to a new identity. ``provider`` is a Gate provider id
+    (``"google"``, ``"github"``, …) and ``subject`` that provider's id for the account;
+    together at most 254 characters."""
+
+    provider: str
+    subject: str
+
+
+class OidcConfigInput(TypedDict):
+    providers: List[OidcProviderLink]
+
+
+class OidcCredentialInput(TypedDict):
+    config: OidcConfigInput
+
+
+class IdentityCredentialsInput(TypedDict, total=False):
+    """Credentials of a new identity: a password (or its bcrypt hash) and the social
+    accounts to link, e.g.
+    ``{"password": {"config": {"hashed_password": "$2b$10$…"}},
+    "oidc": {"config": {"providers": [{"provider": "google", "subject": "…"}]}}}``."""
+
+    password: PasswordCredentialInput
+    oidc: OidcCredentialInput
+
+
 def _dict(value: Any) -> Dict[str, Any]:
     return dict(value) if isinstance(value, dict) else {}
 
