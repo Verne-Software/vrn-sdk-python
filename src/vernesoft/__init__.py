@@ -1,4 +1,4 @@
-"""vernesoft — Official Python SDK for the Verne Nautilus platform."""
+"""vernesoft — Official Python SDK for Nautilus by Verne Software."""
 
 from ._client import AsyncVerne, Verne
 from ._core.errors import TokenErrorReason, VerneAPIError, VerneError, VerneTokenError
@@ -58,7 +58,7 @@ from ._resources.passepartout._types import (
 from ._resources.relay._relay import AsyncRelay, Relay
 from ._resources.relay._types import ListMessagesResponse, Message
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 
 __all__ = [
     "__version__",

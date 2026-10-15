@@ -52,7 +52,7 @@ class _Keys:
 
 
 class Verne:
-    """Unified synchronous client for the Verne Nautilus platform.
+    """Unified synchronous client for Nautilus by Verne Software.
 
     Pass one API key (``api_key``) and use every service its scopes allow — ``relay``,
     ``gate``, ``passepartout``, ``clockwork``. A key is ``vrn_…`` and carries a set of
@@ -137,7 +137,7 @@ class Verne:
 
 
 class AsyncVerne:
-    """Unified asynchronous client for the Verne Nautilus platform.
+    """Unified asynchronous client for Nautilus by Verne Software.
 
     The same keys as :class:`Verne`: one ``api_key`` for every service, per-service keys
     override it. Every method of its services is a coroutine.
