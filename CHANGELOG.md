@@ -6,6 +6,8 @@ All notable changes to `vernesoft`. The format follows
 
 ## [1.6.0] — unreleased
 
+The first release on PyPI since 1.4.1: it also carries everything in 1.5.0 below.
+
 What the organization routes answer since Nautilus v1.10.44, mapped into the dataclasses.
 
 ### Added
@@ -33,7 +35,9 @@ What the organization routes answer since Nautilus v1.10.44, mapped into the dat
 The new dataclass fields come last and have defaults, so code that builds these objects
 itself (positionally or by keyword) keeps working.
 
-## [1.5.0] — unreleased
+## [1.5.0] — tagged 2026-10-25, not published
+
+Tagged `v1.5.0` but never published to PyPI: its changes reach PyPI in 1.6.0. Going from 1.4.1 to 1.6.0 brings everything below.
 
 ### Added
 
