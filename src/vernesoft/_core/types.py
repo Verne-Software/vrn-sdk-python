@@ -13,11 +13,16 @@ class Paginated(Generic[T]):
     Pass ``next_cursor`` back as ``cursor`` while ``has_more`` is ``True``;
     ``next_cursor`` is ``None`` on the last page — loop on ``has_more``, not on an
     empty ``data``.
+
+    ``total`` is how many items the whole list has, the same on every page whatever
+    ``limit`` and ``cursor`` say — set on the lists that count (organizations, roles,
+    members), ``None`` on the others.
     """
 
     data: List[T]
     has_more: bool
     next_cursor: Optional[str] = None
+    total: Optional[int] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any], item: Callable[[Dict[str, Any]], T]) -> "Paginated[T]":
@@ -25,7 +30,13 @@ class Paginated(Generic[T]):
             data=[item(x) for x in data.get("data") or []],
             has_more=bool(data.get("has_more", False)),
             next_cursor=data.get("next_cursor"),
+            total=_int_or_none(data.get("total")),
         )
+
+
+def _int_or_none(value: Any) -> Optional[int]:
+    # ``bool`` is an ``int`` to Python; a count is never one.
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
 class NotGiven:

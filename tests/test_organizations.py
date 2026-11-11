@@ -34,6 +34,7 @@ _IDENTITY_ID = "c0ffee00-1111-4222-8333-444455556666"
 _ORG = {
     "id": _ORG_ID,
     "name": "Acme",
+    "member_count": 12,
     "created_at": "2026-10-14T09:00:00Z",
     "updated_at": "2026-10-14T09:00:00Z",
 }
@@ -42,6 +43,7 @@ _ROLE = {
     "organization_id": _ORG_ID,
     "name": "admin",
     "permissions": ["invoices:read", "invoices:write"],
+    "member_count": 3,
     "created_at": "2026-10-14T09:00:00Z",
     "updated_at": "2026-10-14T09:00:00Z",
 }
@@ -49,6 +51,8 @@ _MEMBER = {
     "organization_id": _ORG_ID,
     "identity_id": _IDENTITY_ID,
     "role_id": _ROLE_ID,
+    "email": "alice@example.com",
+    "display_name": "Alice",
     "expires_at": None,
     "created_at": "2026-10-14T09:00:00Z",
     "updated_at": "2026-10-14T09:00:00Z",
@@ -75,6 +79,17 @@ def _page(item: Dict[str, Any], has_more: bool = False) -> Dict[str, Any]:
     return {"data": [item], "has_more": has_more, "next_cursor": "cur_2" if has_more else None}
 
 
+def _counted(item: Dict[str, Any], total: int) -> Dict[str, Any]:
+    return {**_page(item), "total": total}
+
+
+def _refusal(status: int, code: str, reason: str | None = None) -> Dict[str, Any]:
+    error: Dict[str, Any] = {"code": code, "message": "refused", "request_id": "req_1"}
+    if reason is not None:
+        error["reason"] = reason
+    return {"error": error}
+
+
 # ===========================================================================
 # Organizations
 # ===========================================================================
@@ -88,6 +103,7 @@ def test_create(httpx_mock: HTTPXMock, gate: Gate) -> None:
         name="Acme",
         created_at="2026-10-14T09:00:00Z",
         updated_at="2026-10-14T09:00:00Z",
+        member_count=12,
     )
     request = httpx_mock.get_request()
     assert _body(request) == {"name": "Acme"}
@@ -104,6 +120,51 @@ def test_list_pages_and_drops_unset_params(httpx_mock: HTTPXMock, gate: Gate) ->
     assert isinstance(first.data[0], Organization)
     last = gate.organizations.list(limit=1, cursor="cur_2")
     assert last.has_more is False and last.next_cursor is None
+
+
+def test_list_carries_total_and_each_organization_its_member_count(
+    httpx_mock: HTTPXMock, gate: Gate
+) -> None:
+    httpx_mock.add_response(method="GET", url=f"{_ORGS}?limit=1", json=_counted(_ORG, 37))
+    httpx_mock.add_response(method="GET", url=f"{_ORGS}/{_ORG_ID}", json=_ORG)
+    page = gate.organizations.list(limit=1)
+    assert page.total == 37
+    assert page.data[0].member_count == 12
+    assert gate.organizations.get(_ORG_ID).member_count == 12
+
+
+def test_a_list_that_does_not_count_has_no_total(httpx_mock: HTTPXMock, gate: Gate) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{_BASE_URL}/v1/gate/identities/{_IDENTITY_ID}/organizations",
+        json=_page({"id": _ORG_ID, "role": "admin", "permissions": []}),
+    )
+    assert gate.identities.list_organizations(_IDENTITY_ID).total is None
+
+
+def test_an_answer_without_the_new_fields_still_reads() -> None:
+    org = Organization.from_dict({"id": _ORG_ID, "name": "Acme"})
+    member = Member.from_dict({"identity_id": _IDENTITY_ID, "role_id": _ROLE_ID})
+    assert org.member_count == 0
+    assert member.email is None and member.display_name is None
+    # 1.5 code that builds the objects positionally keeps working.
+    assert Organization(_ORG_ID, "Acme", "c", "u").member_count == 0
+    assert Member("o", "i", "r", None, "c", "u").email is None
+
+
+def test_a_missing_organization_is_404_with_reason_organization(
+    httpx_mock: HTTPXMock, gate: Gate
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{_ORGS}/{_ORG_ID}",
+        status_code=404,
+        json=_refusal(404, "not_found", "organization"),
+    )
+    with pytest.raises(VerneAPIError) as exc_info:
+        gate.organizations.get(_ORG_ID)
+    err = exc_info.value
+    assert (err.status, err.code, err.reason) == (404, "not_found", "organization")
 
 
 def test_get_update_delete(httpx_mock: HTTPXMock, gate: Gate) -> None:
@@ -179,6 +240,52 @@ def test_role_delete_held_is_conflict(httpx_mock: HTTPXMock, gate: Gate) -> None
         gate.organizations.roles.delete(_ORG_ID, _ROLE_ID)
     assert exc_info.value.status == 409
     assert exc_info.value.code == "conflict"
+    assert exc_info.value.reason is None
+
+
+def test_role_list_carries_total_and_a_role_its_member_count(
+    httpx_mock: HTTPXMock, gate: Gate
+) -> None:
+    httpx_mock.add_response(method="GET", url=f"{_ORGS}/{_ORG_ID}/roles", json=_counted(_ROLE, 2))
+    page = gate.organizations.roles.list(_ORG_ID)
+    assert page.total == 2
+    assert page.data[0].member_count == 3
+
+
+@pytest.mark.parametrize(
+    ("method", "url", "status", "code", "reason"),
+    [
+        ("DELETE", f"{_ORGS}/{_ORG_ID}/roles/{_ROLE_ID}", 409, "conflict", "role_held"),
+        ("POST", f"{_ORGS}/{_ORG_ID}/roles", 409, "conflict", "role_name_taken"),
+        ("GET", f"{_ORGS}/{_ORG_ID}/roles/{_ROLE_ID}", 404, "not_found", "role"),
+        ("POST", f"{_ORGS}/{_ORG_ID}/roles", 409, "limit_reached", None),
+    ],
+)
+def test_role_refusals_carry_their_reason(
+    httpx_mock: HTTPXMock,
+    gate: Gate,
+    method: str,
+    url: str,
+    status: int,
+    code: str,
+    reason: str | None,
+) -> None:
+    httpx_mock.add_response(
+        method=method, url=url, status_code=status, json=_refusal(status, code, reason)
+    )
+    roles = gate.organizations.roles
+    with pytest.raises(VerneAPIError) as exc_info:
+        if method == "DELETE":
+            roles.delete(_ORG_ID, _ROLE_ID)
+        elif method == "POST":
+            roles.create(_ORG_ID, name="admin")
+        else:
+            roles.get(_ORG_ID, _ROLE_ID)
+    err = exc_info.value
+    assert (err.status, err.code, err.reason) == (status, code, reason)
+    if reason is not None:
+        # Kept where 1.5 put it, so code reading details still works.
+        assert err.details["reason"] == reason
 
 
 # ===========================================================================
@@ -224,12 +331,58 @@ def test_member_update_absent_vs_null_vs_time(httpx_mock: HTTPXMock, gate: Gate)
 
 
 def test_member_list_and_remove(httpx_mock: HTTPXMock, gate: Gate) -> None:
-    httpx_mock.add_response(method="GET", url=f"{_ORGS}/{_ORG_ID}/members", json=_page(_MEMBER))
+    httpx_mock.add_response(
+        method="GET", url=f"{_ORGS}/{_ORG_ID}/members", json=_counted(_MEMBER, 1)
+    )
     httpx_mock.add_response(
         method="DELETE", url=f"{_ORGS}/{_ORG_ID}/members/{_IDENTITY_ID}", status_code=204
     )
-    assert gate.organizations.members.list(_ORG_ID).data[0].identity_id == _IDENTITY_ID
+    page = gate.organizations.members.list(_ORG_ID)
+    assert page.data[0].identity_id == _IDENTITY_ID
+    assert page.data[0].email == "alice@example.com"
+    assert page.total == 1
     gate.organizations.members.remove(_ORG_ID, _IDENTITY_ID)
+
+
+def test_every_member_answer_carries_email_and_display_name(
+    httpx_mock: HTTPXMock, gate: Gate
+) -> None:
+    httpx_mock.add_response(method="POST", url=f"{_ORGS}/{_ORG_ID}/members", json=_MEMBER)
+    # A Telegram user: no address, the first name they signed in with.
+    httpx_mock.add_response(
+        method="PATCH",
+        url=f"{_ORGS}/{_ORG_ID}/members/{_IDENTITY_ID}",
+        json={**_MEMBER, "email": None, "display_name": "Jules"},
+    )
+    added = gate.organizations.members.add(_ORG_ID, identity_id=_IDENTITY_ID, role_id=_ROLE_ID)
+    assert (added.email, added.display_name) == ("alice@example.com", "Alice")
+    updated = gate.organizations.members.update(_ORG_ID, _IDENTITY_ID, role_id=_ROLE_ID)
+    assert (updated.email, updated.display_name) == (None, "Jules")
+
+
+@pytest.mark.parametrize(
+    ("method", "status", "code", "reason"),
+    [
+        ("POST", 404, "not_found", "end_user"),
+        ("POST", 409, "conflict", "already_member"),
+        ("PATCH", 404, "not_found", "member"),
+    ],
+)
+def test_member_refusals_carry_their_reason(
+    httpx_mock: HTTPXMock, gate: Gate, method: str, status: int, code: str, reason: str
+) -> None:
+    url = f"{_ORGS}/{_ORG_ID}/members" + (f"/{_IDENTITY_ID}" if method == "PATCH" else "")
+    httpx_mock.add_response(
+        method=method, url=url, status_code=status, json=_refusal(status, code, reason)
+    )
+    members = gate.organizations.members
+    with pytest.raises(VerneAPIError) as exc_info:
+        if method == "POST":
+            members.add(_ORG_ID, identity_id=_IDENTITY_ID, role_id=_ROLE_ID)
+        else:
+            members.update(_ORG_ID, _IDENTITY_ID, role_id=_ROLE_ID)
+    err = exc_info.value
+    assert (err.status, err.code, err.reason) == (status, code, reason)
 
 
 # ===========================================================================
@@ -328,6 +481,32 @@ async def test_async_organizations_roundtrip(httpx_mock: HTTPXMock, async_gate: 
     decision = await orgs.authorize(org.id, _IDENTITY_ID, "invoices:read")
     assert decision.reason == REASON_NOT_A_MEMBER and decision.role is None
     assert _body(httpx_mock.get_requests()[3]) == {"expires_at": None}
+
+
+async def test_async_lists_carry_total_and_the_new_fields(
+    httpx_mock: HTTPXMock, async_gate: AsyncGate
+) -> None:
+    httpx_mock.add_response(method="GET", url=_ORGS, json=_counted(_ORG, 5))
+    httpx_mock.add_response(method="GET", url=f"{_ORGS}/{_ORG_ID}/roles", json=_counted(_ROLE, 2))
+    httpx_mock.add_response(
+        method="GET", url=f"{_ORGS}/{_ORG_ID}/members", json=_counted(_MEMBER, 1)
+    )
+    httpx_mock.add_response(
+        method="DELETE",
+        url=f"{_ORGS}/{_ORG_ID}/roles/{_ROLE_ID}",
+        status_code=409,
+        json=_refusal(409, "conflict", "role_held"),
+    )
+    orgs = async_gate.organizations
+    org_page = await orgs.list()
+    role_page = await orgs.roles.list(_ORG_ID)
+    member_page = await orgs.members.list(_ORG_ID)
+    assert (org_page.total, org_page.data[0].member_count) == (5, 12)
+    assert (role_page.total, role_page.data[0].member_count) == (2, 3)
+    assert (member_page.total, member_page.data[0].display_name) == (1, "Alice")
+    with pytest.raises(VerneAPIError) as exc_info:
+        await orgs.roles.delete(_ORG_ID, _ROLE_ID)
+    assert exc_info.value.reason == "role_held"
 
 
 async def test_async_can(httpx_mock: HTTPXMock, async_gate: AsyncGate) -> None:

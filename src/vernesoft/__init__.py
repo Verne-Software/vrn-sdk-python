@@ -1,7 +1,13 @@
 """vernesoft — Official Python SDK for Nautilus by Verne Software."""
 
 from ._client import AsyncVerne, Verne
-from ._core.errors import TokenErrorReason, VerneAPIError, VerneError, VerneTokenError
+from ._core.errors import (
+    ErrorReason,
+    TokenErrorReason,
+    VerneAPIError,
+    VerneError,
+    VerneTokenError,
+)
 from ._core.types import NOT_GIVEN, NotGiven, Paginated
 from ._resources.clockwork._clockwork import AsyncClockwork, Clockwork
 from ._resources.clockwork._types import (
@@ -64,7 +70,7 @@ from ._resources.passepartout._types import (
 from ._resources.relay._relay import AsyncRelay, Relay
 from ._resources.relay._types import ListMessagesResponse, Message
 
-__version__ = "1.5.0"
+__version__ = "1.6.0"
 
 __all__ = [
     "__version__",
@@ -88,6 +94,7 @@ __all__ = [
     "VerneAPIError",
     "VerneTokenError",
     "TokenErrorReason",
+    "ErrorReason",
     # Relay types
     "Message",
     "ListMessagesResponse",

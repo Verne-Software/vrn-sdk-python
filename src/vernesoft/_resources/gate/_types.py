@@ -69,6 +69,10 @@ def _list_of_dicts(value: Any) -> List[Dict[str, Any]]:
     return [dict(x) for x in value if isinstance(x, dict)] if isinstance(value, list) else []
 
 
+def _str_or_none(value: Any) -> Optional[str]:
+    return value if isinstance(value, str) else None
+
+
 @dataclass(frozen=True)
 class Identity:
     """An end user (a Kratos identity) managed by Gate.
@@ -446,6 +450,8 @@ class Organization:
     name: str
     created_at: str
     updated_at: str
+    #: How many people hold a role in the organization right now.
+    member_count: int = 0
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Organization":
@@ -454,6 +460,7 @@ class Organization:
             name=data["name"],
             created_at=data.get("created_at", ""),
             updated_at=data.get("updated_at", ""),
+            member_count=int(data.get("member_count") or 0),
         )
 
 
@@ -469,6 +476,9 @@ class Role:
     permissions: List[str]
     created_at: str
     updated_at: str
+    #: How many people hold the role right now. A role someone holds cannot be deleted
+    #: (``409 conflict``, reason ``role_held``).
+    member_count: int = 0
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Role":
@@ -479,6 +489,7 @@ class Role:
             permissions=list(data.get("permissions") or []),
             created_at=data.get("created_at", ""),
             updated_at=data.get("updated_at", ""),
+            member_count=int(data.get("member_count") or 0),
         )
 
 
@@ -493,6 +504,11 @@ class Member:
     expires_at: Optional[str]
     created_at: str
     updated_at: str
+    #: The person's address, or ``None`` when they have none (a Telegram user has no email).
+    email: Optional[str] = None
+    #: What the person is called, or ``None``: the ``display_name`` trait, or for a Telegram
+    #: user the first name (failing that, the username) they signed in with.
+    display_name: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Member":
@@ -503,6 +519,8 @@ class Member:
             expires_at=data.get("expires_at"),
             created_at=data.get("created_at", ""),
             updated_at=data.get("updated_at", ""),
+            email=_str_or_none(data.get("email")),
+            display_name=_str_or_none(data.get("display_name")),
         )
 
 

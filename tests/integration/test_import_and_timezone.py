@@ -54,16 +54,18 @@ def test_a_cron_job_keeps_its_time_zone() -> None:
     )
     try:
         assert job.timezone == "Europe/Paris"
-        # 09:00 in Paris in October (CEST, UTC+2) is 07:00 UTC.
-        assert at_utc_hour(job.next_run_at, 7), job.next_run_at
+        # 09:00 in Paris is 07:00 UTC in summer (CEST, UTC+2) and 08:00 UTC in winter (CET).
+        assert at_utc_hour(job.next_run_at, 7) or at_utc_hour(job.next_run_at, 8), job.next_run_at
 
         listed = [j for j in jobs.list() if j.id == job.id]
         assert listed[0].timezone == "Europe/Paris"
 
         moved = jobs.update(job.id, timezone="America/New_York")
         assert moved.timezone == "America/New_York"
-        # 09:00 in New York in October (EDT, UTC-4) is 13:00 UTC.
-        assert at_utc_hour(moved.next_run_at, 13), moved.next_run_at
+        # 09:00 in New York is 13:00 UTC in summer (EDT, UTC-4) and 14:00 UTC in winter (EST).
+        assert at_utc_hour(moved.next_run_at, 13) or at_utc_hour(moved.next_run_at, 14), (
+            moved.next_run_at
+        )
     finally:
         jobs.delete(job.id)
 
