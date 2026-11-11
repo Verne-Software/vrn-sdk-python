@@ -225,6 +225,43 @@ def test_error_shapes_that_are_not_objects() -> None:
         assert err.details == {}
 
 
+def test_reason_is_read_next_to_an_unchanged_code() -> None:
+    err = VerneAPIError.from_response(
+        409,
+        {"error": {"code": "conflict", "message": "x", "request_id": "r", "reason": "role_held"}},
+    )
+    assert (err.code, err.reason, err.details) == ("conflict", "role_held", {"reason": "role_held"})
+    assert "reason='role_held'" in repr(err)
+
+    unknown = VerneAPIError.from_response(
+        409, {"error": {"code": "conflict", "message": "x", "reason": "something_new"}}
+    )
+    assert unknown.reason == "something_new"
+
+    none = VerneAPIError.from_response(404, {"error": {"code": "not_found", "message": "x"}})
+    assert none.reason is None
+    not_a_string = VerneAPIError.from_response(
+        404, {"error": {"code": "not_found", "message": "x", "reason": 42}}
+    )
+    assert not_a_string.reason is None
+
+
+def test_an_identity_service_sentence_is_not_taken_for_a_reason() -> None:
+    err = VerneAPIError.from_response(
+        400,
+        {
+            "error": {
+                "code": 400,
+                "status": "Bad Request",
+                "reason": "The request was malformed.",
+                "message": "m",
+            }
+        },
+    )
+    assert err.code == "unknown"
+    assert err.reason is None
+
+
 def test_positional_constructor_still_works() -> None:
     err = VerneAPIError("not_found", "Nope", 404, "req_1")
     assert (err.code, err.status, err.request_id, err.details) == ("not_found", 404, "req_1", {})

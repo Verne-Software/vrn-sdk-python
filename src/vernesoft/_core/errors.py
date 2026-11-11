@@ -2,6 +2,28 @@ from __future__ import annotations
 
 from typing import Any, Dict, Literal, Optional
 
+#: The ``reason`` of a ``404 not_found`` or a ``409 conflict`` on the organization routes,
+#: in :attr:`VerneAPIError.reason`:
+#:
+#: - ``404``: ``organization`` (no such organization in the key's project), ``role`` (no
+#:   such role in it), ``member`` (the person is not a member), ``end_user``
+#:   (``identity_id`` is not one of your end users), ``project`` (no such project);
+#: - ``409``: ``role_name_taken`` (the organization already has a role with that name),
+#:   ``role_held`` (someone holds the role, so it cannot be deleted), ``already_member``.
+#:
+#: The set is open: keep a branch for a reason you do not know. A role limit hit is
+#: ``409 limit_reached``, with no reason.
+ErrorReason = Literal[
+    "organization",
+    "role",
+    "member",
+    "end_user",
+    "project",
+    "role_name_taken",
+    "role_held",
+    "already_member",
+]
+
 #: Why a signed token was refused (see :class:`VerneTokenError`).
 TokenErrorReason = Literal[
     "malformed",
@@ -39,6 +61,12 @@ class VerneAPIError(VerneError):
         ``request_id`` — e.g. ``plan``/``limit``/``current`` on a ``402``, ``kind`` on a
         Clockwork limit, ``required_aal``/``current_aal`` on ``403 mfa_required``. Empty
         when there are none.
+    :ivar reason: which one of its kind the error is, when the API says: on the
+        organization routes a ``404 not_found`` names what was not found and a
+        ``409 conflict`` why it is one (see :data:`ErrorReason`). ``code`` is unchanged, so
+        code that ignores ``reason`` behaves as before. ``None`` when the error has none,
+        and for a body that is not the API's envelope. The same value stays in
+        ``details["reason"]``.
     :ivar retry_after: seconds from the ``Retry-After`` header when the response had one.
         On ``429 RELAY_MESSAGE_LIMIT_REACHED`` it runs to the 1st of next month.
     :ivar body: the raw parsed response body (``None`` when it was not JSON), kept so an
@@ -55,6 +83,7 @@ class VerneAPIError(VerneError):
         details: Optional[Dict[str, Any]] = None,
         retry_after: Optional[float] = None,
         body: Any = None,
+        reason: Optional[str] = None,
     ) -> None:
         super().__init__(message)
         self.code = code
@@ -64,6 +93,7 @@ class VerneAPIError(VerneError):
         self.details: Dict[str, Any] = dict(details) if details else {}
         self.retry_after = retry_after
         self.body = body
+        self.reason: Optional[str] = reason
 
     @classmethod
     def from_response(
@@ -75,18 +105,23 @@ class VerneAPIError(VerneError):
         but an engine or a pass-through can answer differently: Clockwork's
         ``{"error": "<sentence>"}``, an identity-service body whose ``code`` is a number.
         Anything unrecognised degrades to code ``"unknown"`` and message
-        ``HTTP <status>`` — the error path never raises on its own.
+        ``HTTP <status>`` — the error path never raises on its own. ``reason`` is read only
+        from the envelope proper (a string ``code``): in an identity-service body it is a
+        sentence for people, not a code.
         """
         envelope = body.get("error") if isinstance(body, dict) else None
         details: Dict[str, Any] = {}
         code = "unknown"
         request_id: Optional[str] = None
+        reason: Optional[str] = None
         if isinstance(envelope, dict):
             for key, value in envelope.items():
                 if key not in ("code", "message", "request_id"):
                     details[key] = value
             if isinstance(envelope.get("code"), str):
                 code = envelope["code"]
+                if isinstance(envelope.get("reason"), str):
+                    reason = envelope["reason"]
             if isinstance(envelope.get("request_id"), str):
                 request_id = envelope["request_id"]
         return cls(
@@ -97,12 +132,13 @@ class VerneAPIError(VerneError):
             details=details,
             retry_after=retry_after,
             body=body,
+            reason=reason,
         )
 
     def __repr__(self) -> str:
         return (
             f"VerneAPIError(code={self.code!r}, status={self.status}, "
-            f"request_id={self.request_id!r}, message={str(self)!r})"
+            f"reason={self.reason!r}, request_id={self.request_id!r}, message={str(self)!r})"
         )
 
 

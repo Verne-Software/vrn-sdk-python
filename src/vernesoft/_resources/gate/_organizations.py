@@ -79,7 +79,8 @@ class RolesResource:
         100 roles per organization (``409 limit_reached``). ``permissions``: lowercase
         segments joined by ``:`` (e.g. ``"invoices:write"``), at most 64 characters and
         100 per role; ``*`` and the ``nautilus:`` prefix are reserved. They come back
-        de-duplicated and sorted.
+        de-duplicated and sorted. A taken name is ``409 conflict`` with reason
+        ``role_name_taken``.
         """
         body: Dict[str, Any] = {"name": name}
         if permissions is not None:
@@ -89,7 +90,7 @@ class RolesResource:
     def list(
         self, org_id: str, *, limit: Optional[int] = None, cursor: Optional[str] = None
     ) -> Paginated[Role]:
-        """One page of the organization's roles."""
+        """One page of the organization's roles; ``total`` is how many it has in all."""
         data = self._http.get(f"{_org_path(org_id)}/roles", params=_page(limit, cursor))
         return Paginated.from_dict(data, Role.from_dict)
 
@@ -112,7 +113,8 @@ class RolesResource:
         return Role.from_dict(data)
 
     def delete(self, org_id: str, role_id: str) -> None:
-        """Delete a role. A role someone holds is refused with ``409 conflict``."""
+        """Delete a role. A role someone holds is refused with ``409 conflict``, reason
+        ``role_held`` — ``member_count`` on the role says so before you try."""
         self._http.delete(f"{_org_path(org_id)}/roles/{seg(role_id)}")
 
 
@@ -133,8 +135,9 @@ class MembersResource:
         """Give an end user a role in the organization.
 
         ``expires_at`` (a future time, at most 10 years ahead) ends the membership
-        automatically. ``404`` if the identity is not one of your end users, ``409`` if
-        they already are a member (change the role with :meth:`update`).
+        automatically. ``404 not_found`` with reason ``end_user`` if the identity is not
+        one of your end users, ``409 conflict`` with reason ``already_member`` if they
+        already are a member (change the role with :meth:`update`).
         """
         data = self._http.post(
             f"{_org_path(org_id)}/members",
@@ -145,7 +148,8 @@ class MembersResource:
     def list(
         self, org_id: str, *, limit: Optional[int] = None, cursor: Optional[str] = None
     ) -> Paginated[Member]:
-        """One page of the organization's members."""
+        """One page of the organization's members, with their ``email`` and
+        ``display_name``; ``total`` is how many it has in all."""
         data = self._http.get(f"{_org_path(org_id)}/members", params=_page(limit, cursor))
         return Paginated.from_dict(data, Member.from_dict)
 
@@ -160,7 +164,8 @@ class MembersResource:
         """Change a member's role and/or deadline.
 
         ``expires_at``: leave it out to keep the deadline, ``None`` to remove it, a time
-        to set it. Passing neither ``role_id`` nor ``expires_at`` is a ``400``.
+        to set it. Passing neither ``role_id`` nor ``expires_at`` is a ``400``; a person
+        who is not a member, ``404 not_found`` with reason ``member``.
         """
         data = self._http.patch(
             f"{_org_path(org_id)}/members/{seg(identity_id)}",
@@ -193,7 +198,8 @@ class OrganizationsResource:
     def list(
         self, *, limit: Optional[int] = None, cursor: Optional[str] = None
     ) -> Paginated[Organization]:
-        """One page of the project's organizations, oldest first."""
+        """One page of the project's organizations, oldest first; ``total`` is how many
+        the project has in all."""
         data = self._http.get(_PATH_ORGANIZATIONS, params=_page(limit, cursor))
         return Paginated.from_dict(data, Organization.from_dict)
 
@@ -273,7 +279,8 @@ class AsyncRolesResource:
         return Role.from_dict(data)
 
     async def delete(self, org_id: str, role_id: str) -> None:
-        """Delete a role. A role someone holds is refused with ``409 conflict``."""
+        """Delete a role. A role someone holds is refused with ``409 conflict``, reason
+        ``role_held`` — ``member_count`` on the role says so before you try."""
         await self._http.delete(f"{_org_path(org_id)}/roles/{seg(role_id)}")
 
 
